@@ -1,29 +1,20 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/useColorScheme';
+// app/_layout.tsx (ở cấp gốc của thư mục app)
+import { AppProvider } from '@/context/AppContext'; // Import AppProvider của bạn
+import { Stack } from 'expo-router'; // Hoặc Tabs, tùy thuộc vào navigator cấp cao nhất
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    // Bọc toàn bộ ứng dụng bên trong AppProvider
+    <AppProvider>
+      {/* Đây là nơi định nghĩa navigator cấp cao nhất, ví dụ Stack Navigator */}
+      {/* Các màn hình hoặc nhóm route sẽ được render bên trong Stack.Screen hoặc Slot */}
       <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
+        {/* Ví dụ: Các Stack.Screen hoặc một Slot để render nested routes */}
+        {/* <Stack.Screen name="(tabs)" options={{ headerShown: false }} /> */}
+        {/* Các màn hình khác nếu có */}
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+      {/* Hoặc nếu bạn dùng Slot để render các route con */}
+      {/* <Slot /> */}
+    </AppProvider>
   );
 }
