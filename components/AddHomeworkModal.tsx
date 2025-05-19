@@ -235,6 +235,7 @@ export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave,
 
 
                               <ThemedText style={styles.label}>Mức độ ưu tiên:</ThemedText>
+                              {/* Đã điều chỉnh style cho pickerContainer và pickerStyle */}
                               <View style={styles.pickerContainer}>
                                    <Picker
                                         selectedValue={priority}
@@ -242,6 +243,7 @@ export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave,
                                              setPriority(itemValue as HomeworkItem['priority'])
                                         }
                                         style={styles.pickerStyle}
+                                   // itemStyle={Platform.OS === 'ios' ? { height: 40, fontSize: 16 } : undefined} // Có thể tùy chỉnh itemStyle cho iOS
                                    >
                                         <Picker.Item label="Thấp" value="low" />
                                         <Picker.Item label="Trung bình" value="medium" />
@@ -360,9 +362,14 @@ const styles = StyleSheet.create({
           borderRadius: 6,
           overflow: 'hidden',
           backgroundColor: '#f9f9f9',
+          // Thêm điều chỉnh layout cho iOS Picker
+          // width: '100%', // Đã xóa để thử flex
+          // height: 40, // Có thể đặt chiều cao ở container thay vì picker style
      },
      pickerStyle: {
           height: 40,
+          flex: 1, // Thêm flex: 1 để Picker chiếm không gian có sẵn
+          // width: Platform.OS === 'ios' ? '100%' : 'auto', // Đảm bảo Picker chiếm hết chiều rộng của container trên iOS
      },
      statusToggle: {
           flexDirection: 'row',

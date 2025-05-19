@@ -11,8 +11,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
 // Import Modal và Context - Đảm bảo đường dẫn đúng
-import AddHomeworkModal from '../../components/AddHomeworkModal'; // Đường dẫn tương đối trong cùng thư mục (tabs)
-import { HomeworkItem, useAppContext } from '@/context/AppContext'; // Đường dẫn tuyệt đối đến context
+import AddHomeworkModal from '@/components/AddHomeworkModal'; // Đường dẫn tương đối trong cùng thư mục (tabs)
+import { HomeworkItem, useAppContext } from '@/context/AppContext'; // Đảm bảo đường dẫn đúng
 
 
 // Hàm helper định dạng ngày hạn chót
@@ -184,6 +184,7 @@ export default function HomeworkScreen() {
      return (
           <ThemedView style={styles.container}>
                {/* --- Bộ lọc và Sắp xếp Controls --- */}
+               {/* Đã điều chỉnh styles cho phù hợp hơn trên iOS */}
                <View style={styles.controlsContainer}>
                     {/* Lọc theo Trạng thái */}
                     <View style={styles.pickerWrapper}>
@@ -214,8 +215,6 @@ export default function HomeworkScreen() {
                     </View>
 
                     {/* Sắp xếp theo */}
-                    {/* Chú ý: Picker thứ 3 và thứ 4 trong code gốc dường như cùng xử lý "Sắp xếp" và "Thứ tự".
-                         Tôi sẽ giữ nguyên như code gốc, nhưng bạn có thể cân nhắc hợp nhất logic này nếu phù hợp hơn. */}
                     <View style={styles.pickerWrapper}>
                          <ThemedText style={styles.controlLabel}>Sắp xếp:</ThemedText>
                          <Picker
@@ -223,14 +222,21 @@ export default function HomeworkScreen() {
                               onValueChange={(itemValue) => setSortBy(itemValue as 'dueDate' | 'priority')}
                               style={styles.pickerStyle}
                          >
-                              {/* Các tùy chọn trong Picker này sẽ thay đổi based on selected SortBy in the next picker */}
-                              <Picker.Item label="Hạn chót" value="dueDate" />
-                              <Picker.Item label="Ưu tiên" value="priority" />
+                              {sortBy === 'dueDate' ? (
+                                   <>
+                                        <Picker.Item label="Gần nhất" value="asc" />
+                                        <Picker.Item label="Xa nhất" value="desc" />
+                                   </>
+                              ) : (
+                                   <>
+                                        <Picker.Item label="Thấp đến Cao" value="asc" />
+                                        <Picker.Item label="Cao đến Thấp" value="desc" />
+                                   </>
+                              )}
                          </Picker>
                     </View>
 
                     {/* Thứ tự Sắp xếp (Tăng/Giảm) */}
-                    {/* Picker này nên điều khiển thứ tự (asc/desc) cho tiêu chí đã chọn ở Picker "Sắp xếp theo" */}
                     <View style={styles.pickerWrapper}>
                          <ThemedText style={styles.controlLabel}>Thứ tự:</ThemedText>
                          <Picker
@@ -309,22 +315,25 @@ const styles = StyleSheet.create({
           flex: 1,
           backgroundColor: '#f4f7f6',
      },
-     controlsContainer: {
+     controlsContainer: { // Container cho bộ lọc và sắp xếp
           flexDirection: 'row',
-          justifyContent: 'space-around',
+          justifyContent: 'space-around', // Căn đều các Picker
           alignItems: 'center',
           padding: 10,
-          backgroundColor: '#ecf0f1',
+          backgroundColor: '#ecf0f1', // Màu nền nhẹ
           borderBottomWidth: 1,
           borderBottomColor: '#ddd',
-          flexWrap: 'wrap',
+          flexWrap: 'wrap', // Cho phép xuống dòng nếu nhiều controls
      },
-     pickerWrapper: {
+     pickerWrapper: { // Container cho mỗi Picker và Label
           flexDirection: 'row',
           alignItems: 'center',
-          flexBasis: Platform.OS === 'ios' ? 140 : 150,
-          marginHorizontal: 5,
-          marginBottom: 5,
+          // Đặt width cố định hoặc flexBasis đủ lớn và điều chỉnh flex cho Picker
+          width: Platform.OS === 'ios' ? 160 : 150, // Thử với width cố định cho iOS
+          // flexBasis: Platform.OS === 'ios' ? 160 : 150, // Hoặc flexBasis
+          marginHorizontal: 5, // Khoảng cách giữa các picker wrapper
+          marginBottom: 5, // Khoảng cách dưới nếu wrap
+          // borderWidth: 1, borderColor: 'blue', // Dùng để debug layout
      },
      controlLabel: {
           fontSize: 14,
@@ -332,13 +341,17 @@ const styles = StyleSheet.create({
           fontWeight: 'bold',
           color: '#555',
      },
-     pickerStyle: {
+     pickerStyle: { // Style cho Picker component
           height: 40,
-          flex: 1,
+          // Trên iOS, Picker có thể cần flex: 1 hoặc width cụ thể trong wrapper
+          flex: 1, // Cho phép picker chiếm phần còn lại của wrapper
+          // Nếu dùng width cố định cho wrapper, có thể không cần flex: 1 ở đây
+          // width: Platform.OS === 'ios' ? '100%' : 'auto', // Thử auto trên iOS
+          // borderWidth: 1, borderColor: 'green', // Dùng để debug layout
      },
      flatListContent: {
-          paddingHorizontal: 15,
-          paddingVertical: 10,
+          paddingHorizontal: 15, // Padding ngang danh sách
+          paddingVertical: 10, // Padding dọc danh sách
      },
      emptyStateContainer: {
           flex: 1,
@@ -352,44 +365,46 @@ const styles = StyleSheet.create({
           color: '#555',
           marginBottom: 10,
      },
-     homeworkItem: {
-          backgroundColor: '#fff',
-          padding: 18,
-          borderRadius: 10,
-          marginBottom: 12,
+     homeworkItem: { // Cập nhật style cho mỗi item bài tập
+          backgroundColor: '#fff', // Nền trắng
+          padding: 18, // Padding lớn hơn
+          borderRadius: 10, // Bo góc nhiều hơn
+          marginBottom: 12, // Khoảng cách dưới lớn hơn
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 3 },
-          shadowOpacity: 0.1,
-          shadowRadius: 5,
-          elevation: 4,
+          shadowOffset: { width: 0, height: 3 }, // Đổ bóng sâu hơn
+          shadowOpacity: 0.1, // Đổ bóng nhẹ hơn
+          shadowRadius: 5, // Đổ bóng mềm hơn
+          elevation: 4, // Android shadow
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
-          borderLeftWidth: 6,
+          borderLeftWidth: 6, // Viền màu bên trái dày hơn
+          // border color determined by getItemColor
      },
      overdueItem: {
-          // backgroundColor: '#f8d7da', // Optional
+          // backgroundColor: '#f8d7da', // Nền nhạt màu đỏ (tùy chọn)
      },
      homeworkContent: {
           flex: 1,
-          marginRight: 15,
+          marginRight: 15, // Khoảng cách giữa nội dung và icon
      },
-     itemTitle: {
-          fontSize: 17,
+     itemTitle: { // Style cho tiêu đề bài tập
+          fontSize: 17, // Font size lớn hơn
           fontWeight: 'bold',
           marginBottom: 4,
-          color: '#333',
+          color: '#333', // Màu chữ rõ ràng
      },
-     itemSubject: {
+     itemSubject: { // Style cho môn học
           fontSize: 14,
-          color: '#555',
+          color: '#555', // Màu chữ xám
           marginBottom: 4,
      },
-     itemDueDate: {
+     itemDueDate: { // Style cho hạn chót
           fontSize: 14,
           fontWeight: 'bold',
+          // Color determined by getItemColor (đã có logic màu đỏ/màu khác)
      },
      statusIconContainer: {
-          paddingLeft: 10,
+          paddingLeft: 10, // Khoảng cách trái cho icon container
      }
 });
