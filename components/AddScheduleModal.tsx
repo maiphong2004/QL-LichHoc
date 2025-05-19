@@ -8,26 +8,26 @@ import {
      Platform,
      TouchableOpacity,
      ScrollView,
-     Alert, // Import Alert
-     Pressable, // Import Pressable
+     Alert,
+     Pressable,
 } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { ThemedView } from '@/components/ThemedView'; // Giữ lại nếu ThemedView được dùng ở đâu đó trong modal style
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import moment from 'moment';
 import 'moment/locale/vi';
 moment.locale('vi');
 
-// Import kiểu dữ liệu ScheduleEvent từ context - Đảm bảo đường dẫn đúng
+// Import kiểu dữ liệu ScheduleEvent từ context
 import { ScheduleEvent } from '@/context/AppContext';
 
 
-// Component đơn giản cho Checkbox Ngày trong tuần (giữ nguyên)
+// Component đơn giản cho Checkbox Ngày trong tuần
 interface DayCheckboxProps {
-     day: string; // Tên ngày hiển thị (ví dụ: 'T2')
-     selected: boolean; // Trạng thái chọn
-     onToggle: () => void; // Hàm xử lý khi nhấn
+     day: string;
+     selected: boolean;
+     onToggle: () => void;
 }
 
 const DayCheckbox = ({ day, selected, onToggle }: DayCheckboxProps) => (
@@ -38,7 +38,7 @@ const DayCheckbox = ({ day, selected, onToggle }: DayCheckboxProps) => (
 
 // Mapping giữa tên ngày hiển thị và giá trị lưu trữ trong Context
 const daysMap: { [key: string]: ScheduleEvent['daysOfWeek'][0] } = {
-     'T2': 'Mon', 'T3': 'Tue', 'T4': 'Wed', 'T5': 'Thu', 'T6': 'Fri', 'T7': 'Sat', 'CN': 'Sun'
+     'Mon': 'Thứ Hai', 'Tue': 'Thứ Ba', 'Wed': 'Thứ Tư', 'Thu': 'Thứ Năm', 'Fri': 'Thứ Sáu', 'Sat': 'Thứ Bảy', 'Sun': 'Chủ Nhật'
 };
 const daysOfWeekOrder = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -46,10 +46,10 @@ const daysOfWeekOrder = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 // Định nghĩa kiểu dữ liệu cho Modal Props
 interface AddScheduleModalProps {
      visible: boolean;
-     itemToEdit: ScheduleEvent | null; // Prop mới: Item lịch học cần sửa (hoặc null)
+     itemToEdit: ScheduleEvent | null;
      onClose: () => void;
-     onSave: (scheduleEvent: Omit<ScheduleEvent, 'id'> | ScheduleEvent) => void; // onSave nhận item mới hoặc đã sửa
-     onDelete: (id: string) => void; // Prop mới: Hàm xóa
+     onSave: (scheduleEvent: Omit<ScheduleEvent, 'id'> | ScheduleEvent) => void;
+     onDelete: (id: string) => void;
 }
 
 export default function AddScheduleModal({ visible, itemToEdit, onClose, onSave, onDelete }: AddScheduleModalProps) {
@@ -58,17 +58,16 @@ export default function AddScheduleModal({ visible, itemToEdit, onClose, onSave,
      const [endTime, setEndTime] = useState(new Date());
      const [showStartTimePicker, setShowStartTimePicker] = useState(false);
      const [showEndTimePicker, setShowEndTimePicker] = useState(false);
-     const [selectedDays, setSelectedDays] = useState<ScheduleEvent['daysOfWeek']>([]); // Sử dụng kiểu từ Context
+     const [selectedDays, setSelectedDays] = useState<ScheduleEvent['daysOfWeek']>([]);
      const [location, setLocation] = useState('');
 
-     const isEditing = itemToEdit !== null; // Kiểm tra chế độ sửa/thêm
+     const isEditing = itemToEdit !== null;
 
      // Effect để điền dữ liệu vào form khi sửa
      useEffect(() => {
           if (visible) {
-               if (isEditing && itemToEdit) { // Đảm bảo itemToEdit tồn tại khi sửa
+               if (isEditing && itemToEdit) {
                     setSubject(itemToEdit.subject);
-                    // Chuyển đổi string 'HH:mm' thành Date object tạm thời (chỉ lấy giờ phút)
                     const [startHour, startMinute] = itemToEdit.startTime.split(':').map(Number);
                     const [endHour, endMinute] = itemToEdit.endTime.split(':').map(Number);
                     const now = new Date();
@@ -77,14 +76,14 @@ export default function AddScheduleModal({ visible, itemToEdit, onClose, onSave,
 
                     setStartTime(start);
                     setEndTime(end);
-                    setSelectedDays(itemToEdit.daysOfWeek); // Điền mảng ngày đã chọn
+                    setSelectedDays(itemToEdit.daysOfWeek);
                     setLocation(itemToEdit.location);
                } else {
                     // Reset form khi thêm mới
                     setSubject('');
                     const now = new Date();
                     setStartTime(now);
-                    const defaultEndTime = new Date(now.getTime() + 1.5 * 60 * 60 * 1000); // Giờ kết thúc mặc định 1.5h sau
+                    const defaultEndTime = new Date(now.getTime() + 1.5 * 60 * 60 * 1000);
                     setEndTime(defaultEndTime);
                     setSelectedDays([]);
                     setLocation('');
@@ -93,8 +92,8 @@ export default function AddScheduleModal({ visible, itemToEdit, onClose, onSave,
      }, [visible, itemToEdit, isEditing]);
 
 
-     // Xử lý chọn ngày trong tuần (giữ nguyên)
-     const handleToggleDay = (dayKey: ScheduleEvent['daysOfWeek'][0]) => { // Sử dụng kiểu từ Context
+     // Xử lý chọn ngày trong tuần
+     const handleToggleDay = (dayKey: ScheduleEvent['daysOfWeek'][0]) => {
           setSelectedDays(prevSelectedDays => {
                if (prevSelectedDays.includes(dayKey)) {
                     return prevSelectedDays.filter(day => day !== dayKey);
@@ -107,7 +106,7 @@ export default function AddScheduleModal({ visible, itemToEdit, onClose, onSave,
      // Xử lý khi nhấn nút Lưu
      const handleSave = () => {
           if (!subject || selectedDays.length === 0 || !location) {
-               Alert.alert('Lỗi', 'Vui lòng nhập đủ thông tin: Môn học, Ngày, và Địa điểm.'); // Dùng Alert thay vì alert()
+               Alert.alert('Lỗi', 'Vui lòng nhập đủ thông tin: Môn học, Ngày, và Địa điểm.');
                return;
           }
 
@@ -123,30 +122,27 @@ export default function AddScheduleModal({ visible, itemToEdit, onClose, onSave,
           };
 
           if (isEditing) {
-               if (itemToEdit) { // <--- KIỂM TRA itemToEdit an toàn hơn
-                    // Nếu đang sửa, gọi onSave với item đã có ID
+               if (itemToEdit) {
                     const updatedScheduleEvent: ScheduleEvent = {
-                         id: itemToEdit.id, // Giữ nguyên ID
+                         id: itemToEdit.id,
                          ...scheduleData,
                     };
                     onSave(updatedScheduleEvent);
                } else {
-                    // Trường hợp này không nên xảy ra, nhưng log lỗi để debug
                     console.error("Lỗi (handleSave): Đang ở chế độ sửa nhưng itemToEdit là null/undefined");
-                    Alert.alert("Lỗi", "Không thể lưu thay đổi. Dữ liệu không hợp lệ."); // Thông báo cho người dùng
+                    Alert.alert("Lỗi", "Không thể lưu thay đổi. Dữ liệu không hợp lệ.");
                     return;
                }
           } else {
-               // Nếu đang thêm mới, gọi onSave với dữ liệu chưa có ID (Context sẽ tạo ID)
-               onSave(scheduleData as Omit<ScheduleEvent, 'id'>); // Ép kiểu an toàn
+               onSave(scheduleData as Omit<ScheduleEvent, 'id'>);
           }
 
-          onClose(); // Đóng modal sau khi lưu thành công
+          onClose();
      };
 
      // Xử lý khi nhấn nút Xóa
      const handleDelete = () => {
-          if (!isEditing || !itemToEdit) { // Chỉ xóa khi đang sửa VÀ itemToEdit tồn tại
+          if (!isEditing || !itemToEdit) {
                console.warn("Không thể xóa (handleDelete): Không ở chế độ sửa hoặc itemToEdit là null/undefined");
                Alert.alert("Lỗi", "Không thể xóa. Dữ liệu không hợp lệ.");
                return;
@@ -164,10 +160,10 @@ export default function AddScheduleModal({ visible, itemToEdit, onClose, onSave,
                     {
                          text: "Xóa",
                          onPress: () => {
-                              onDelete(itemToEdit.id); // Gọi hàm xóa
-                              onClose(); // Đóng modal
+                              onDelete(itemToEdit.id);
+                              onClose();
                          },
-                         style: "destructive" // Màu đỏ cho nút xóa trên iOS
+                         style: "destructive"
                     }
                ]
           );
@@ -197,44 +193,36 @@ export default function AddScheduleModal({ visible, itemToEdit, onClose, onSave,
                visible={visible}
                animationType="slide"
                transparent={true}
-               onRequestClose={onClose} // Xử lý nút Back cứng (Android)
+               onRequestClose={onClose}
           >
-               {/* Vùng Overlay có thể chạm để đóng */}
-               <TouchableOpacity // <-- SỬA Ở ĐÂY (Dùng TouchableOpacity/Pressable cho overlay)
+               <TouchableOpacity
                     style={styles.modalOverlay}
-                    activeOpacity={1} // Quan trọng để nó không bị mờ khi chạm
-                    onPress={onClose} // <-- Đặt onPress ở đây để đóng khi chạm NỀN MỜ
+                    activeOpacity={1}
+                    onPress={onClose}
                >
-                    {/* Vùng Nội dung Modal - Bọc trong Pressable để ngăn chặn sự kiện chạm làm đóng Modal */}
-                    <Pressable // <-- BỌC NỘI DUNG Ở ĐÂY
+                    <Pressable
                          style={styles.modalContent}
-                         onPress={() => { }} // <-- Ngăn sự kiện chạm lan ra overlay
+                         onPress={() => { }}
                     >
-                         {/* Header của modal */}
                          <View style={styles.modalHeader}>
                               <ThemedText type="title">{isEditing ? 'Sửa Lịch học' : 'Thêm Lịch học mới'}</ThemedText>
-                              {/* Nút đóng 'x' */}
                               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                                    <Ionicons name="close-circle-outline" size={30} color="#555" />
                               </TouchableOpacity>
                          </View>
 
-                         {/* Nội dung Form có thể cuộn */}
                          <ScrollView contentContainerStyle={styles.formScrollViewContent}>
-                              {/* Trường Môn học */}
                               <ThemedText style={styles.label}>Môn học:</ThemedText>
                               <TextInput
                                    style={styles.input}
                                    value={subject}
                                    onChangeText={setSubject}
                                    placeholder="Nhập môn học"
-                                   placeholderTextColor="#999" // Thêm placeholder color
+                                   placeholderTextColor="#999"
                               />
 
-                              {/* Trường Thời gian */}
                               <ThemedText style={styles.label}>Thời gian:</ThemedText>
                               <View style={styles.timeContainer}>
-                                   {/* Chọn giờ Bắt đầu */}
                                    <TouchableOpacity onPress={() => setShowStartTimePicker(true)} style={styles.timePickerButton}>
                                         <ThemedText style={styles.timeText}>Bắt đầu: {moment(startTime).format('HH:mm')}</ThemedText>
                                    </TouchableOpacity>
@@ -251,7 +239,6 @@ export default function AddScheduleModal({ visible, itemToEdit, onClose, onSave,
 
                                    <ThemedText style={{ marginHorizontal: 10 }}>-</ThemedText>
 
-                                   {/* Chọn giờ Kết thúc */}
                                    <TouchableOpacity onPress={() => setShowEndTimePicker(true)} style={styles.timePickerButton}>
                                         <ThemedText style={styles.timeText}>Kết thúc: {moment(endTime).format('HH:mm')}</ThemedText>
                                    </TouchableOpacity>
@@ -266,41 +253,35 @@ export default function AddScheduleModal({ visible, itemToEdit, onClose, onSave,
                                         />
                                    )}
                               </View>
-                              {/* Trên iOS, cần nút Done hoặc logic xử lý riêng để đóng picker */}
                               {(showStartTimePicker || showEndTimePicker) && Platform.OS === 'ios' && (
                                    <Button title="Xong" onPress={() => { setShowStartTimePicker(false); setShowEndTimePicker(false); }} />
                               )}
 
 
-                              {/* Trường Ngày trong tuần */}
                               <ThemedText style={styles.label}>Ngày trong tuần:</ThemedText>
                               <View style={styles.daysContainer}>
                                    {daysOfWeekOrder.map(dayName => (
                                         <DayCheckbox
                                              key={dayName}
                                              day={dayName}
-                                             selected={selectedDays.includes(daysMap[dayName])} // Kiểm tra dựa trên giá trị lưu trữ
-                                             onToggle={() => handleToggleDay(daysMap[dayName])} // Lưu giá trị lưu trữ
+                                             selected={selectedDays.includes(daysMap[dayName])}
+                                             onToggle={() => handleToggleDay(daysMap[dayName])}
                                         />
                                    ))}
                               </View>
 
 
-                              {/* Trường Địa điểm */}
                               <ThemedText style={styles.label}>Địa điểm:</ThemedText>
                               <TextInput
                                    style={styles.input}
                                    value={location}
                                    onChangeText={setLocation}
                                    placeholder="Nhập địa điểm (Ví dụ: Phòng A205)"
-                                   placeholderTextColor="#999" // Thêm placeholder color
+                                   placeholderTextColor="#999"
                               />
-
-                              {/* Có thể thêm trường Giảng viên, Ngày bắt đầu/Kết thúc kỳ học sau này */}
 
                          </ScrollView>
 
-                         {/* Footer nút (Lưu và Xóa) */}
                          <View style={styles.modalFooter}>
                               {isEditing && (
                                    <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
@@ -312,8 +293,8 @@ export default function AddScheduleModal({ visible, itemToEdit, onClose, onSave,
                                    <Button title={isEditing ? "Lưu Thay đổi" : "Lưu Lịch học"} onPress={handleSave} color="#3498db" />
                               </View>
                          </View>
-                    </Pressable> {/* <-- KẾT THÚC Pressable */}
-               </TouchableOpacity> {/* <-- KẾT THÚC TouchableOpacity */}
+                    </Pressable>
+               </TouchableOpacity>
           </Modal>
      );
 }
@@ -323,45 +304,43 @@ const styles = StyleSheet.create({
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: 'rgba(0, 0, 0, 0.6)', // Nền mờ
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
      },
      modalContent: {
-          width: '90%', // Chiều rộng 90% màn hình
-          maxHeight: '90%', // Chiều cao tối đa 90%
-          borderRadius: 12, // Bo góc
-          padding: 25, // Padding bên trong
-          backgroundColor: '#fff', // Nền trắng
-          shadowColor: '#000', // Đổ bóng iOS
+          width: '90%',
+          maxHeight: '90%',
+          borderRadius: 12,
+          padding: 25,
+          backgroundColor: '#fff',
+          shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.2,
           shadowRadius: 8,
-          elevation: 8, // Đổ bóng Android
+          elevation: 8,
      },
-     modalHeader: { // Header (Tiêu đề và nút đóng)
+     modalHeader: {
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: 25,
-          paddingBottom: 10, // Khoảng cách dưới header
-          borderBottomWidth: 1, // Đường kẻ dưới header
-          borderBottomColor: '#eee', // Màu đường kẻ
-          // backgroundColor: 'transparent', // Đảm bảo trong suốt
+          paddingBottom: 10,
+          borderBottomWidth: 1,
+          borderBottomColor: '#eee',
      },
-     closeButton: { // Nút đóng 'x'
-          padding: 8, // Tăng vùng chạm
+     closeButton: {
+          padding: 8,
      },
-     formScrollViewContent: { // Nội dung Form có thể cuộn
-          paddingBottom: 30, // Khoảng trống dưới cùng ScrollView
+     formScrollViewContent: {
+          paddingBottom: 30,
      },
-     label: { // Label cho các trường input
+     label: {
           fontSize: 15,
           marginBottom: 8,
-          marginTop: 15, // Khoảng cách trên các label
+          marginTop: 15,
           fontWeight: 'bold',
-          color: '#333', // Màu chữ
-          // backgroundColor: 'transparent',
+          color: '#333',
      },
-     input: { // Style chung cho TextInput
+     input: {
           borderWidth: 1,
           borderColor: '#ccc',
           padding: 12,
@@ -369,9 +348,9 @@ const styles = StyleSheet.create({
           fontSize: 16,
           backgroundColor: '#f9f9f9',
           color: '#333',
-          marginBottom: 15, // Khoảng cách dưới input
+          marginBottom: 15,
      },
-     timePickerButton: { // Style cho nút chọn giờ
+     timePickerButton: {
           flex: 1,
           borderWidth: 1,
           borderColor: '#ccc',
@@ -380,41 +359,41 @@ const styles = StyleSheet.create({
           backgroundColor: '#f9f9f9',
           alignItems: 'center',
      },
-     timeContainer: { // Container cho 2 nút chọn giờ
+     timeContainer: {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 15, // Khoảng cách dưới
+          marginBottom: 15,
      },
-     daysContainer: { // Container cho các checkbox ngày
+     daysContainer: {
           flexDirection: 'row',
-          flexWrap: 'wrap', // Cho phép xuống dòng
+          flexWrap: 'wrap',
           marginBottom: 15,
           marginTop: 5,
      },
-     checkbox: { // Style cho checkbox ngày
+     checkbox: {
           paddingVertical: 8,
           paddingHorizontal: 15,
-          borderRadius: 25, // Hình tròn hoặc oval
+          borderRadius: 25,
           borderWidth: 1,
           borderColor: '#ccc',
           marginRight: 8,
           marginBottom: 8,
           backgroundColor: '#eee',
      },
-     checkboxSelected: { // Style cho checkbox ngày khi được chọn
+     checkboxSelected: {
           backgroundColor: '#3498db',
           borderColor: '#3498db',
      },
-     checkboxText: { // Style cho text checkbox ngày
+     checkboxText: {
           fontSize: 14,
           color: '#555',
      },
-     checkboxTextSelected: { // Style cho text checkbox ngày khi được chọn
+     checkboxTextSelected: {
           color: '#fff',
           fontWeight: 'bold',
      },
-     statusToggle: {
+     statusToggle: { // Style from HomeworkModal, included for completeness
           flexDirection: 'row',
           alignItems: 'center',
           marginTop: 15,
@@ -426,7 +405,7 @@ const styles = StyleSheet.create({
           borderColor: '#ccc',
           borderWidth: 1,
      },
-     statusText: {
+     statusText: { // Style from HomeworkModal, included for completeness
           marginLeft: 10,
           fontSize: 16,
           color: '#333',
@@ -444,8 +423,6 @@ const styles = StyleSheet.create({
           flexDirection: 'row',
           alignItems: 'center',
           padding: 10,
-          borderRadius: 8,
-          // Không border hay background mặc định để trông nhẹ nhàng
      },
      deleteButtonText: {
           color: '#dc3545',
@@ -457,17 +434,15 @@ const styles = StyleSheet.create({
           flex: 1,
           marginLeft: 20,
      },
-     timeText: {
-          // Style riêng nếu cần, nhưng thường giống checkboxText
+     timeText: { // Style for time text display in buttons
           fontSize: 16,
           color: '#333',
      },
-     // Có thể thêm các style khác cần thiết từ file cũ
-     notesInput: { // Style riêng cho Ghi chú trong HomeworkModal, thêm vào đây cho đầy đủ
+     notesInput: { // Style from HomeworkModal, included for completeness
           minHeight: 100,
           textAlignVertical: 'top',
      },
-     dateDisplay: { // Style cho TouchableOpacity hiển thị ngày/giờ trong HomeworkModal
+     dateDisplay: { // Style from HomeworkModal, included for completeness
           borderWidth: 1,
           borderColor: '#ddd',
           padding: 10,

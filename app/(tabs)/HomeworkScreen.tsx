@@ -10,9 +10,9 @@ moment.locale('vi');
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
-// Import Modal và Context
-import AddHomeworkModal from '@/app/(tabs)/AddHomeworkModal'; // Đảm bảo đường dẫn đúng
-import { HomeworkItem, useAppContext } from '@/context/AppContext'; // <-- SỬA ĐƯỜNG DẪN THÀNH @/context // Đảm bảo đường dẫn đúng
+// Import Modal và Context - Đảm bảo đường dẫn đúng
+import AddHomeworkModal from '../../components/AddHomeworkModal'; // Đường dẫn tương đối trong cùng thư mục (tabs)
+import { HomeworkItem, useAppContext } from '@/context/AppContext'; // Đường dẫn tuyệt đối đến context
 
 
 // Hàm helper định dạng ngày hạn chót
@@ -50,21 +50,15 @@ const getItemColor = (item: HomeworkItem) => {
           };
      }
 
-     // Màu cho trạng thái pending dựa trên ưu tiên (nếu bạn muốn dùng)
-     // Hiện tại đang dùng màu cho pending là màu vàng viền, đỏ text
-     // if (item.priority === 'high') return { borderColor: '#ffc107', textColor: '#e74c3c' }; // Vàng/Đỏ
-     // if (item.priority === 'medium') return { borderColor: '#ffc107', textColor: '#555' }; // Vàng/Xám
-     // if (item.priority === 'low') return { borderColor: '#ced4da', textColor: '#777' }; // Xám nhạt
-
+     // Màu cho trạng thái pending
      return {
           borderColor: '#ffc107', // Màu viền vàng cho pending
-          textColor: '#e74c3c', // Màu text đỏ nhạt cho pending (có thể đổi sang màu khác)
+          textColor: '#e74c3c', // Màu text đỏ nhạt cho pending
      };
 };
 
 
 // Đây là component màn hình Bài tập được render bởi Navigator
-// Chú ý: Nó KHÔNG nhận các props của Modal như visible, onClose, v.v.
 export default function HomeworkScreen() {
      const navigation = useNavigation();
      // Lấy dữ liệu bài tập và các hàm thêm/sửa/xóa từ Context
@@ -72,11 +66,11 @@ export default function HomeworkScreen() {
 
      // State để quản lý Modal
      const [isModalVisible, setModalVisible] = useState(false);
-     const [selectedItemToEdit, setSelectedItemToEdit] = useState<HomeworkItem | null>(null); // Lưu item đang chỉnh sửa
+     const [selectedItemToEdit, setSelectedItemToEdit] = useState<HomeworkItem | null>(null);
 
      // --- State cho Lọc và Sắp xếp ---
-     const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('pending'); // Lọc theo trạng thái
-     const [filterSubject, setFilterSubject] = useState<string>('all'); // State mới: Lọc theo môn học
+     const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('pending');
+     const [filterSubject, setFilterSubject] = useState<string>('all');
      const [sortBy, setSortBy] = useState<'dueDate' | 'priority'>('dueDate');
      const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
@@ -85,7 +79,7 @@ export default function HomeworkScreen() {
      const uniqueSubjects = useMemo(() => {
           const subjects = homework.map(item => item.subject);
           const unique = Array.from(new Set(subjects));
-          return ['all', ...unique.sort()]; // Thêm tùy chọn 'all' và sắp xếp A-Z
+          return ['all', ...unique.sort()];
      }, [homework]);
 
 
@@ -96,15 +90,14 @@ export default function HomeworkScreen() {
                     <TouchableOpacity
                          style={{ marginRight: 15 }}
                          onPress={() => {
-                              setSelectedItemToEdit(null); // Khi nhấn Add, là thêm mới
-                              setModalVisible(true); // Mở Modal
+                              setSelectedItemToEdit(null);
+                              setModalVisible(true);
                          }}
                     >
                          <Ionicons name="add-circle-outline" size={28} color="#007AFF" />
                     </TouchableOpacity>
                ),
-               // Tiêu đề Header cho màn hình này
-               title: 'Bài tập',
+               title: 'Bài tập', // Tiêu đề Header cho màn hình này
           });
      }, [navigation]);
 
@@ -117,7 +110,6 @@ export default function HomeworkScreen() {
           if (filterStatus !== 'all') {
                result = result.filter(item => item.status === filterStatus);
           }
-          // Áp dụng bộ lọc theo môn học SAU bộ lọc trạng thái
           if (filterSubject !== 'all') {
                result = result.filter(item => item.subject === filterSubject);
           }
@@ -128,26 +120,26 @@ export default function HomeworkScreen() {
                     const dateA = moment(a.dueDate);
                     const dateB = moment(b.dueDate);
                     if (sortOrder === 'asc') {
-                         return dateA.diff(dateB); // Sắp xếp hạn chót tăng dần (gần nhất lên trước)
+                         return dateA.diff(dateB);
                     } else {
-                         return dateB.diff(dateA); // Sắp xếp hạn chót giảm dần
+                         return dateB.diff(dateA);
                     }
                } else if (sortBy === 'priority') {
-                    const priorityOrder = { 'low': 0, 'medium': 1, 'high': 2 }; // Gán giá trị số cho ưu tiên
+                    const priorityOrder = { 'low': 0, 'medium': 1, 'high': 2 };
                     const priorityA = priorityOrder[a.priority];
                     const priorityB = priorityOrder[b.priority];
 
                     if (sortOrder === 'asc') {
-                         return priorityA - priorityB; // Ưu tiên tăng dần (thấp lên trước)
+                         return priorityA - priorityB;
                     } else {
-                         return priorityB - priorityA; // Ưu tiên giảm dần (cao lên trước)
+                         return priorityB - priorityA;
                     }
                }
-               return 0; // Không thay đổi thứ tự nếu không khớp tiêu chí
+               return 0;
           });
 
           return result;
-     }, [homework, filterStatus, filterSubject, sortBy, sortOrder]); // Thêm filterSubject vào dependencies
+     }, [homework, filterStatus, filterSubject, sortBy, sortOrder]);
 
 
      // --- Hàm render cho mỗi item bài tập ---
@@ -160,14 +152,14 @@ export default function HomeworkScreen() {
                     style={[
                          styles.homeworkItem,
                          {
-                              borderLeftColor: itemColors.borderColor, // Sử dụng borderLeftColor cho viền
-                              opacity: item.status === 'completed' ? 0.6 : 1 // Giảm opacity nếu hoàn thành
+                              borderLeftColor: itemColors.borderColor,
+                              opacity: item.status === 'completed' ? 0.6 : 1
                          },
-                         isOverdue && styles.overdueItem // Áp dụng style riêng cho quá hạn nếu có
+                         isOverdue && styles.overdueItem
                     ]}
                     onPress={() => {
-                         setSelectedItemToEdit(item); // Khi nhấn vào item, lưu item để sửa
-                         setModalVisible(true); // Mở Modal
+                         setSelectedItemToEdit(item);
+                         setModalVisible(true);
                     }}
                >
                     <View style={styles.homeworkContent}>
@@ -179,9 +171,9 @@ export default function HomeworkScreen() {
                     </View>
                     <View style={styles.statusIconContainer}>
                          {item.status === 'completed' ? (
-                              <MaterialIcons name="check-circle" size={24} color={itemColors.borderColor} /> // Icon hoàn thành
+                              <MaterialIcons name="check-circle" size={24} color={itemColors.borderColor} />
                          ) : (
-                              <MaterialIcons name={isOverdue ? 'warning' : 'circle'} size={24} color={itemColors.borderColor} /> // Icon cảnh báo nếu quá hạn, icon chấm tròn nếu pending
+                              <MaterialIcons name={isOverdue ? 'warning' : 'circle'} size={24} color={itemColors.borderColor} />
                          )}
                     </View>
                </TouchableOpacity>
@@ -192,7 +184,6 @@ export default function HomeworkScreen() {
      return (
           <ThemedView style={styles.container}>
                {/* --- Bộ lọc và Sắp xếp Controls --- */}
-               {/* Bạn có thể copy style từ HomeworkScreen trước đó để làm đẹp phần này */}
                <View style={styles.controlsContainer}>
                     {/* Lọc theo Trạng thái */}
                     <View style={styles.pickerWrapper}>
@@ -201,7 +192,6 @@ export default function HomeworkScreen() {
                               selectedValue={filterStatus}
                               onValueChange={(itemValue) => setFilterStatus(itemValue as 'all' | 'pending' | 'completed')}
                               style={styles.pickerStyle}
-                         // itemStyle={styles.pickerItem} // Chỉ dùng cho iOS
                          >
                               <Picker.Item label="Tất cả" value="all" />
                               <Picker.Item label="Chưa xong" value="pending" />
@@ -216,7 +206,6 @@ export default function HomeworkScreen() {
                               selectedValue={filterSubject}
                               onValueChange={(itemValue) => setFilterSubject(itemValue)}
                               style={styles.pickerStyle}
-                         // itemStyle={styles.pickerItem} // Chỉ dùng cho iOS
                          >
                               {uniqueSubjects.map(subject => (
                                    <Picker.Item key={subject} label={subject === 'all' ? 'Tất cả Môn' : subject} value={subject} />
@@ -225,36 +214,29 @@ export default function HomeworkScreen() {
                     </View>
 
                     {/* Sắp xếp theo */}
+                    {/* Chú ý: Picker thứ 3 và thứ 4 trong code gốc dường như cùng xử lý "Sắp xếp" và "Thứ tự".
+                         Tôi sẽ giữ nguyên như code gốc, nhưng bạn có thể cân nhắc hợp nhất logic này nếu phù hợp hơn. */}
                     <View style={styles.pickerWrapper}>
                          <ThemedText style={styles.controlLabel}>Sắp xếp:</ThemedText>
                          <Picker
                               selectedValue={sortBy}
                               onValueChange={(itemValue) => setSortBy(itemValue as 'dueDate' | 'priority')}
                               style={styles.pickerStyle}
-                         // itemStyle={styles.pickerItem} // Chỉ dùng cho iOS
                          >
-                              {sortBy === 'dueDate' ? (
-                                   <>
-                                        <Picker.Item label="Gần nhất" value="asc" />
-                                        <Picker.Item label="Xa nhất" value="desc" />
-                                   </>
-                              ) : (
-                                   <>
-                                        <Picker.Item label="Thấp đến Cao" value="asc" />
-                                        <Picker.Item label="Cao đến Thấp" value="desc" />
-                                   </>
-                              )}
+                              {/* Các tùy chọn trong Picker này sẽ thay đổi based on selected SortBy in the next picker */}
+                              <Picker.Item label="Hạn chót" value="dueDate" />
+                              <Picker.Item label="Ưu tiên" value="priority" />
                          </Picker>
                     </View>
 
                     {/* Thứ tự Sắp xếp (Tăng/Giảm) */}
+                    {/* Picker này nên điều khiển thứ tự (asc/desc) cho tiêu chí đã chọn ở Picker "Sắp xếp theo" */}
                     <View style={styles.pickerWrapper}>
                          <ThemedText style={styles.controlLabel}>Thứ tự:</ThemedText>
                          <Picker
                               selectedValue={sortOrder}
                               onValueChange={(itemValue) => setSortOrder(itemValue as 'asc' | 'desc')}
                               style={styles.pickerStyle}
-                         // itemStyle={styles.pickerItem} // Chỉ dùng cho iOS
                          >
                               {sortBy === 'dueDate' ? (
                                    <>
@@ -275,18 +257,16 @@ export default function HomeworkScreen() {
                {/* --- Danh sách Bài tập --- */}
                {filteredAndSortedHomework.length > 0 ? (
                     <FlatList
-                         data={filteredAndSortedHomework} // Sử dụng dữ liệu đã lọc và sắp xếp
+                         data={filteredAndSortedHomework}
                          keyExtractor={(item) => item.id}
                          renderItem={renderHomeworkItem}
                          contentContainerStyle={styles.flatListContent}
                     />
                ) : (
                     <View style={styles.emptyStateContainer}>
-                         {/* Sửa: Bọc chuỗi text tĩnh trong ThemedText */}
                          <ThemedText type="default" style={styles.emptyStateText}>
                               {homework.length > 0 ? 'Không tìm thấy bài tập phù hợp với bộ lọc.' : 'Chưa có bài tập nào được thêm.'}
                          </ThemedText>
-                         {/* Sửa: Bọc chuỗi text tĩnh trong ThemedText */}
                          {homework.length === 0 && (
                               <ThemedText type="default" style={styles.emptyStateText}>
                                    Nhấn nút "+" ở góc trên để thêm mới!
@@ -297,28 +277,24 @@ export default function HomeworkScreen() {
 
 
                {/* Modal thêm/sửa bài tập */}
-               {/* Modal hiển thị nếu state isModalVisible là true */}
                <AddHomeworkModal
-                    visible={isModalVisible} // Lấy từ state
-                    itemToEdit={selectedItemToEdit} // Lấy từ state
-                    onClose={() => { // Hàm đóng modal
+                    visible={isModalVisible}
+                    itemToEdit={selectedItemToEdit}
+                    onClose={() => {
                          setModalVisible(false);
-                         setSelectedItemToEdit(null); // Reset item đang chỉnh sửa
-                    }}
-                    onSave={(homeworkData) => { // Hàm xử lý lưu từ modal
-                         if (selectedItemToEdit && 'id' in homeworkData) {
-                              // Nếu đang sửa, gọi update
-                              updateHomework(homeworkData as HomeworkItem);
-                         } else {
-                              // Nếu thêm mới, gọi add
-                              addHomework(homeworkData as Omit<HomeworkItem, 'id'>);
-                         }
-                         setModalVisible(false); // Đóng modal sau khi lưu
                          setSelectedItemToEdit(null);
                     }}
-                    onDelete={(id) => { // Hàm xử lý xóa từ modal
+                    onSave={(homeworkData) => {
+                         if (selectedItemToEdit && 'id' in homeworkData) {
+                              updateHomework(homeworkData as HomeworkItem);
+                         } else {
+                              addHomework(homeworkData as Omit<HomeworkItem, 'id'>);
+                         }
+                         setModalVisible(false);
+                         setSelectedItemToEdit(null);
+                    }}
+                    onDelete={(id) => {
                          deleteHomework(id);
-                         // Gọi setModalVisible(false) để đóng modal sau khi nhấn xóa
                          setModalVisible(false);
                          setSelectedItemToEdit(null);
                     }}
@@ -333,25 +309,22 @@ const styles = StyleSheet.create({
           flex: 1,
           backgroundColor: '#f4f7f6',
      },
-     controlsContainer: { // Container cho bộ lọc và sắp xếp
+     controlsContainer: {
           flexDirection: 'row',
-          justifyContent: 'space-around', // Căn đều các Picker
+          justifyContent: 'space-around',
           alignItems: 'center',
           padding: 10,
-          backgroundColor: '#ecf0f1', // Màu nền nhẹ
+          backgroundColor: '#ecf0f1',
           borderBottomWidth: 1,
           borderBottomColor: '#ddd',
-          flexWrap: 'wrap', // Cho phép xuống dòng nếu nhiều controls
+          flexWrap: 'wrap',
      },
      pickerWrapper: {
           flexDirection: 'row',
           alignItems: 'center',
-          // width: '30%', // Có thể điều chỉnh chiều rộng hoặc để flex
-          // minWidth: 120, // Chiều rộng tối thiểu
-          flexBasis: Platform.OS === 'ios' ? 140 : 150, // Flex basis cho mỗi picker wrapper
-          marginHorizontal: 5, // Khoảng cách giữa các picker wrapper
-          marginBottom: 5, // Khoảng cách dưới nếu wrap
-          // borderWidth: 1, borderColor: '#ccc', borderRadius: 8, // Thêm border cho picker wrapper nếu muốn
+          flexBasis: Platform.OS === 'ios' ? 140 : 150,
+          marginHorizontal: 5,
+          marginBottom: 5,
      },
      controlLabel: {
           fontSize: 14,
@@ -359,18 +332,13 @@ const styles = StyleSheet.create({
           fontWeight: 'bold',
           color: '#555',
      },
-     pickerStyle: { // Style cho Picker component
+     pickerStyle: {
           height: 40,
-          flex: 1, // Cho phép picker chiếm phần còn lại của wrapper
-          // width: Platform.OS === 'ios' ? 120 : 130, // Bỏ width cố định khi dùng flex: 1
-     },
-     pickerItem: {
-          // fontSize: 14,
-          // color: '#333',
+          flex: 1,
      },
      flatListContent: {
-          paddingHorizontal: 15, // Padding ngang danh sách
-          paddingVertical: 10, // Padding dọc danh sách
+          paddingHorizontal: 15,
+          paddingVertical: 10,
      },
      emptyStateContainer: {
           flex: 1,
@@ -384,46 +352,44 @@ const styles = StyleSheet.create({
           color: '#555',
           marginBottom: 10,
      },
-     homeworkItem: { // Cập nhật style cho mỗi item bài tập
-          backgroundColor: '#fff', // Nền trắng
-          padding: 18, // Padding lớn hơn
-          borderRadius: 10, // Bo góc nhiều hơn
-          marginBottom: 12, // Khoảng cách dưới lớn hơn
+     homeworkItem: {
+          backgroundColor: '#fff',
+          padding: 18,
+          borderRadius: 10,
+          marginBottom: 12,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 3 }, // Đổ bóng sâu hơn
-          shadowOpacity: 0.1, // Đổ bóng nhẹ hơn
-          shadowRadius: 5, // Đổ bóng mềm hơn
-          elevation: 4, // Android shadow
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.1,
+          shadowRadius: 5,
+          elevation: 4,
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
-          borderLeftWidth: 6, // Viền màu bên trái dày hơn
-          // border color determined by getItemColor
+          borderLeftWidth: 6,
      },
      overdueItem: {
-          // backgroundColor: '#f8d7da', // Nền nhạt màu đỏ (tùy chọn)
+          // backgroundColor: '#f8d7da', // Optional
      },
      homeworkContent: {
           flex: 1,
-          marginRight: 15, // Khoảng cách giữa nội dung và icon
+          marginRight: 15,
      },
-     itemTitle: { // Style cho tiêu đề bài tập
-          fontSize: 17, // Font size lớn hơn
+     itemTitle: {
+          fontSize: 17,
           fontWeight: 'bold',
           marginBottom: 4,
-          color: '#333', // Màu chữ rõ ràng
+          color: '#333',
      },
-     itemSubject: { // Style cho môn học
+     itemSubject: {
           fontSize: 14,
-          color: '#555', // Màu chữ xám
+          color: '#555',
           marginBottom: 4,
      },
-     itemDueDate: { // Style cho hạn chót
+     itemDueDate: {
           fontSize: 14,
           fontWeight: 'bold',
-          // Color determined by getItemColor (đã có logic màu đỏ/màu khác)
      },
      statusIconContainer: {
-          paddingLeft: 10, // Khoảng cách trái cho icon container
+          paddingLeft: 10,
      }
 });

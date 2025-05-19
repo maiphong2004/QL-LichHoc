@@ -12,20 +12,18 @@ import {
      Pressable, // Import Pressable
 } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
-// Import ThemedView nếu bạn sử dụng trong Modal (code hiện tại không dùng)
-// import { ThemedView } from '@/components/ThemedView';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import moment from 'moment';
 import 'moment/locale/vi';
 moment.locale('vi');
-import { Ionicons, MaterialIcons } from '@expo/vector-icons'; // Import MaterialIcons cho trạng thái
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
-// Import kiểu dữ liệu HomeworkItem từ context - Đảm bảo đường dẫn đúng
+// Import kiểu dữ liệu HomeworkItem từ context
 import { HomeworkItem } from '@/context/AppContext';
 
 
-// Hàm helper lấy màu dựa trên trạng thái (ĐỊNH NGHĨA MỘT LẦN DUY NHẤT Ở ĐÂY)
+// Hàm helper lấy màu dựa trên trạng thái
 const getStatusColor = (status: string) => {
      if (status === 'completed') return '#28a745'; // Green
      return '#ffc107'; // Yellow (pending default)
@@ -34,10 +32,10 @@ const getStatusColor = (status: string) => {
 // Định nghĩa kiểu dữ liệu cho Modal Props
 interface AddHomeworkModalProps {
      visible: boolean;
-     itemToEdit: HomeworkItem | null; // Prop mới: Item bài tập cần sửa (hoặc null nếu đang thêm mới)
+     itemToEdit: HomeworkItem | null; // Item bài tập cần sửa (hoặc null nếu đang thêm mới)
      onClose: () => void;
      onSave: (homework: Omit<HomeworkItem, 'id'> | HomeworkItem) => void; // onSave có thể nhận item mới hoặc item đã sửa
-     onDelete: (id: string) => void; // Prop mới: Hàm xóa bài tập
+     onDelete: (id: string) => void; // Hàm xóa bài tập
 }
 
 export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave, onDelete }: AddHomeworkModalProps) {
@@ -48,17 +46,17 @@ export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave,
      const [showTimePicker, setShowTimePicker] = useState(false);
      const [priority, setPriority] = useState<HomeworkItem['priority']>('medium');
      const [notes, setNotes] = useState('');
-     const [status, setStatus] = useState<HomeworkItem['status']>('pending'); // State cho trạng thái
+     const [status, setStatus] = useState<HomeworkItem['status']>('pending');
 
-     const isEditing = itemToEdit !== null; // Kiểm tra xem đang ở chế độ sửa hay thêm
+     const isEditing = itemToEdit !== null;
 
      // Effect để điền dữ liệu vào form khi modal mở ở chế độ sửa
      useEffect(() => {
           if (visible) {
-               if (isEditing && itemToEdit) { // Đảm bảo itemToEdit tồn tại khi sửa
+               if (isEditing && itemToEdit) {
                     setDescription(itemToEdit.description);
                     setSubject(itemToEdit.subject);
-                    setDueDate(moment(itemToEdit.dueDate).toDate()); // Chuyển ISO string thành Date object
+                    setDueDate(moment(itemToEdit.dueDate).toDate());
                     setPriority(itemToEdit.priority);
                     setNotes(itemToEdit.notes);
                     setStatus(itemToEdit.status);
@@ -69,10 +67,10 @@ export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave,
                     setDueDate(new Date());
                     setPriority('medium');
                     setNotes('');
-                    setStatus('pending'); // Mặc định khi thêm mới
+                    setStatus('pending');
                }
           }
-     }, [visible, itemToEdit, isEditing]); // Chạy lại khi visible hoặc itemToEdit thay đổi
+     }, [visible, itemToEdit, isEditing]);
 
 
      const onChangeDate = (event: any, selectedDate?: Date) => {
@@ -107,34 +105,31 @@ export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave,
                dueDate: dueDate.toISOString(),
                priority,
                notes,
-               status, // Lưu cả trạng thái
+               status,
           };
 
           if (isEditing) {
-               if (itemToEdit) { // <--- KIỂM TRA itemToEdit an toàn hơn
-                    // Nếu đang sửa, gọi onSave với item đã có ID
+               if (itemToEdit) {
                     const updatedHomework: HomeworkItem = {
-                         id: itemToEdit.id, // Giữ nguyên ID
+                         id: itemToEdit.id,
                          ...homeworkData,
                     };
                     onSave(updatedHomework);
                } else {
-                    // Trường hợp này không nên xảy ra, nhưng log lỗi để debug
                     console.error("Lỗi (handleSave): Đang ở chế độ sửa nhưng itemToEdit là null/undefined");
-                    Alert.alert("Lỗi", "Không thể lưu thay đổi. Dữ liệu không hợp lệ."); // Thông báo cho người dùng
+                    Alert.alert("Lỗi", "Không thể lưu thay đổi. Dữ liệu không hợp lệ.");
                     return;
                }
           } else {
-               // Nếu đang thêm mới, gọi onSave với dữ liệu chưa có ID (Context sẽ tạo ID)
-               onSave(homeworkData as Omit<HomeworkItem, 'id'>); // Ép kiểu an toàn
+               onSave(homeworkData as Omit<HomeworkItem, 'id'>);
           }
 
-          onClose(); // Đóng modal sau khi lưu thành công
+          onClose();
      };
 
      // Xử lý khi nhấn nút Xóa
      const handleDelete = () => {
-          if (!isEditing || !itemToEdit) { // Chỉ xóa khi đang sửa VÀ itemToEdit tồn tại
+          if (!isEditing || !itemToEdit) {
                console.warn("Không thể xóa (handleDelete): Không ở chế độ sửa hoặc itemToEdit là null/undefined");
                Alert.alert("Lỗi", "Không thể xóa. Dữ liệu không hợp lệ.");
                return;
@@ -152,10 +147,10 @@ export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave,
                     {
                          text: "Xóa",
                          onPress: () => {
-                              onDelete(itemToEdit.id); // Gọi hàm xóa từ component cha
-                              onClose(); // Đóng modal sau khi xóa
+                              onDelete(itemToEdit.id);
+                              onClose();
                          },
-                         style: "destructive" // Màu đỏ cho nút xóa trên iOS
+                         style: "destructive"
                     }
                ]
           );
@@ -172,51 +167,43 @@ export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave,
                visible={visible}
                animationType="slide"
                transparent={true}
-               onRequestClose={onClose} // Xử lý nút Back cứng (Android)
+               onRequestClose={onClose}
           >
-               {/* Vùng Overlay có thể chạm để đóng */}
-               <TouchableOpacity // <-- SỬA Ở ĐÂY (Dùng TouchableOpacity/Pressable cho overlay)
+               <TouchableOpacity
                     style={styles.modalOverlay}
-                    activeOpacity={1} // Quan trọng để nó không bị mờ khi chạm
-                    onPress={onClose} // <-- Đặt onPress ở đây để đóng khi chạm NỀN MỜ
+                    activeOpacity={1}
+                    onPress={onClose}
                >
-                    {/* Vùng Nội dung Modal - Bọc trong Pressable để ngăn chặn sự kiện chạm làm đóng Modal */}
-                    <Pressable // <-- BỌC NỘI DUNG Ở ĐÂY
+                    <Pressable
                          style={styles.modalContent}
-                         onPress={() => { }} // <-- Ngăn sự kiện chạm lan ra overlay
+                         onPress={() => { }}
                     >
-                         {/* Header của modal */}
                          <View style={styles.modalHeader}>
                               <ThemedText type="title">{isEditing ? 'Sửa Bài tập' : 'Thêm Bài tập mới'}</ThemedText>
-                              {/* Nút đóng 'x' */}
                               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                                    <Ionicons name="close-circle-outline" size={30} color="#555" />
                               </TouchableOpacity>
                          </View>
 
-                         {/* Nội dung Form có thể cuộn */}
                          <ScrollView contentContainerStyle={styles.formScrollViewContent}>
-                              {/* Trường Mô tả */}
                               <ThemedText style={styles.label}>Mô tả Bài tập:</ThemedText>
                               <TextInput
                                    style={styles.input}
                                    value={description}
                                    onChangeText={setDescription}
                                    placeholder="Nhập mô tả bài tập"
-                                   placeholderTextColor="#999" // Thêm placeholder color
+                                   placeholderTextColor="#999"
                               />
 
-                              {/* Trường Môn học */}
                               <ThemedText style={styles.label}>Môn học:</ThemedText>
                               <TextInput
                                    style={styles.input}
                                    value={subject}
                                    onChangeText={setSubject}
                                    placeholder="Nhập môn học"
-                                   placeholderTextColor="#999" // Thêm placeholder color
+                                   placeholderTextColor="#999"
                               />
 
-                              {/* Trường Hạn chót */}
                               <ThemedText style={styles.label}>Hạn chót:</ThemedText>
                               <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateDisplay}>
                                    <ThemedText>{moment(dueDate).format('HH:mm, DD/MM/YYYY')}</ThemedText>
@@ -242,43 +229,37 @@ export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave,
                                         onChange={onChangeTime}
                                    />
                               )}
-                              {/* Nút Done cho cả 2 pickers trên iOS */}
                               {Platform.OS === 'ios' && (showDatePicker || showTimePicker) && (
                                    <Button title="Xong" onPress={() => { setShowDatePicker(false); setShowTimePicker(false); }} />
                               )}
 
 
-                              {/* Trường Ưu tiên */}
                               <ThemedText style={styles.label}>Mức độ ưu tiên:</ThemedText>
                               <View style={styles.pickerContainer}>
                                    <Picker
                                         selectedValue={priority}
                                         onValueChange={(itemValue, itemIndex) =>
-                                             setPriority(itemValue as HomeworkItem['priority']) // Ép kiểu
+                                             setPriority(itemValue as HomeworkItem['priority'])
                                         }
                                         style={styles.pickerStyle}
-                                   // itemStyle={styles.pickerItem} // Chỉ dùng cho iOS
                                    >
-                                        {/* CÁC PICKER.ITEM CÓ KHẢ NĂNG GÂY CẢNH BÁO VĂN BẢN TRỰC TIẾP */}
                                         <Picker.Item label="Thấp" value="low" />
                                         <Picker.Item label="Trung bình" value="medium" />
                                         <Picker.Item label="Cao" value="high" />
                                    </Picker>
                               </View>
 
-                              {/* Trường Ghi chú */}
                               <ThemedText style={styles.label}>Ghi chú:</ThemedText>
                               <TextInput
                                    style={[styles.input, styles.notesInput]}
                                    value={notes}
                                    onChangeText={setNotes}
                                    placeholder="Ghi chú thêm (tùy chọn)"
-                                   placeholderTextColor="#999" // Thêm placeholder color
+                                   placeholderTextColor="#999"
                                    multiline={true}
                                    numberOfLines={4}
                               />
 
-                              {/* Trường Trạng thái (Chỉ hiển thị khi sửa) */}
                               {isEditing && (
                                    <>
                                         <ThemedText style={styles.label}>Trạng thái:</ThemedText>
@@ -286,7 +267,7 @@ export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave,
                                              <MaterialIcons
                                                   name={status === 'completed' ? 'check-circle' : 'circle'}
                                                   size={24}
-                                                  color={getStatusColor(status)} // Sử dụng lại hàm màu status
+                                                  color={getStatusColor(status)}
                                              />
                                              <ThemedText style={styles.statusText}>
                                                   {status === 'completed' ? 'Đã hoàn thành' : 'Chưa hoàn thành'}
@@ -298,7 +279,6 @@ export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave,
 
                          </ScrollView>
 
-                         {/* Footer nút (Lưu và Xóa) */}
                          <View style={styles.modalFooter}>
                               {isEditing && (
                                    <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
@@ -310,8 +290,8 @@ export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave,
                                    <Button title={isEditing ? "Lưu Thay đổi" : "Lưu Bài tập"} onPress={handleSave} color="#3498db" />
                               </View>
                          </View>
-                    </Pressable> {/* <-- KẾT THÚC Pressable */}
-               </TouchableOpacity> {/* <-- KẾT THÚC TouchableOpacity */}
+                    </Pressable>
+               </TouchableOpacity>
           </Modal>
      );
 }
@@ -321,41 +301,39 @@ const styles = StyleSheet.create({
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)', // Nền mờ
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
      },
      modalContent: {
-          width: '90%', // Chiều rộng 90% màn hình
-          maxHeight: '90%', // Chiều cao tối đa 90%
-          borderRadius: 10, // Bo góc
-          padding: 20, // Padding bên trong
-          backgroundColor: '#fff', // Nền trắng
-          shadowColor: '#000', // Đổ bóng iOS
+          width: '90%',
+          maxHeight: '90%',
+          borderRadius: 10,
+          padding: 20,
+          backgroundColor: '#fff',
+          shadowColor: '#000',
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.25,
           shadowRadius: 4,
-          elevation: 5, // Đổ bóng Android
+          elevation: 5,
      },
-     modalHeader: { // Header (Tiêu đề và nút đóng)
+     modalHeader: {
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: 20,
-          // backgroundColor: 'transparent', // Đảm bảo trong suốt
      },
-     closeButton: { // Nút đóng 'x'
+     closeButton: {
           padding: 5,
      },
-     formScrollViewContent: { // Nội dung Form có thể cuộn
-          paddingBottom: 20, // Khoảng trống dưới cùng ScrollView
+     formScrollViewContent: {
+          paddingBottom: 20,
      },
-     label: { // Label cho các trường input
+     label: {
           fontSize: 16,
           marginBottom: 8,
-          marginTop: 10, // Khoảng cách trên các label
+          marginTop: 10,
           fontWeight: 'bold',
-          // backgroundColor: 'transparent',
      },
-     input: { // Style chung cho TextInput
+     input: {
           borderWidth: 1,
           borderColor: '#ddd',
           padding: 10,
@@ -364,11 +342,11 @@ const styles = StyleSheet.create({
           backgroundColor: '#f9f9f9',
           color: '#333',
      },
-     notesInput: { // Style riêng cho Ghi chú (nhiều dòng)
-          minHeight: 100, // Chiều cao tối thiểu
-          textAlignVertical: 'top', // Căn text lên trên cho Android
+     notesInput: {
+          minHeight: 100,
+          textAlignVertical: 'top',
      },
-     dateDisplay: { // Style cho TouchableOpacity hiển thị ngày/giờ
+     dateDisplay: {
           borderWidth: 1,
           borderColor: '#ddd',
           padding: 10,
@@ -376,19 +354,17 @@ const styles = StyleSheet.create({
           backgroundColor: '#f9f9f9',
           justifyContent: 'center',
      },
-     pickerContainer: { // Style cho View bọc Picker
+     pickerContainer: {
           borderWidth: 1,
           borderColor: '#ddd',
           borderRadius: 6,
-          overflow: 'hidden', // Quan trọng để Picker không tràn ra ngoài border radius
+          overflow: 'hidden',
           backgroundColor: '#f9f9f9',
      },
-     pickerStyle: { // Style cho Picker component
-          height: 40, // Chiều cao picker
-          // width: Platform.OS === 'ios' ? 120 : 130, // Có thể set width nếu không dùng flex: 1
+     pickerStyle: {
+          height: 40,
      },
-     // pickerItem: { /* Chỉ dùng cho iOS, thường không cần thiết */ },
-     statusToggle: { // Style cho nút toggle trạng thái
+     statusToggle: {
           flexDirection: 'row',
           alignItems: 'center',
           marginTop: 10,
@@ -399,79 +375,37 @@ const styles = StyleSheet.create({
           borderColor: '#ddd',
           borderWidth: 1,
      },
-     statusText: { // Style cho text trạng thái
+     statusText: {
           marginLeft: 10,
           fontSize: 16,
      },
-     modalFooter: { // Container cho các nút ở cuối modal
+     modalFooter: {
           flexDirection: 'row',
-          justifyContent: 'space-between', // Đẩy nút xóa sang trái, nút lưu sang phải
+          justifyContent: 'space-between',
           alignItems: 'center',
           marginTop: 20,
      },
-     deleteButton: { // Style cho nút xóa
+     deleteButton: {
           flexDirection: 'row',
           alignItems: 'center',
           padding: 10,
-          // Không border hay background mặc định để trông nhẹ nhàng
      },
-     deleteButtonText: { // Style cho text nút xóa
-          color: '#dc3545', // Màu đỏ
+     deleteButtonText: {
+          color: '#dc3545',
           marginLeft: 5,
           fontSize: 16,
      },
-     saveButtonContainer: { // Container riêng cho nút lưu để style
-          flex: 1, // Cho phép nút lưu chiếm không gian còn lại
-          marginLeft: 20, // Khoảng cách với nút xóa
-     },
-     // Các style từ AddScheduleModal có thể cần cho style chung nếu muốn hợp nhất
-     timePickerButton: { // Style cho nút chọn giờ
+     saveButtonContainer: {
           flex: 1,
-          borderWidth: 1,
-          borderColor: '#ccc',
-          padding: 12,
-          borderRadius: 8,
-          backgroundColor: '#f9f9f9',
-          alignItems: 'center',
+          marginLeft: 20,
      },
-     timeText: { // Style cho text hiển thị giờ
-          fontSize: 16,
-          color: '#333',
-     },
-     timeContainer: { // Container cho 2 nút chọn giờ
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 15,
-     },
-     daysContainer: { // Container cho các checkbox ngày
-          flexDirection: 'row',
-          flexWrap: 'wrap', // Cho phép xuống dòng
-          marginBottom: 15,
-          marginTop: 5,
-     },
-     checkbox: { // Style cho checkbox ngày
-          paddingVertical: 8,
-          paddingHorizontal: 15,
-          borderRadius: 25, // Hình tròn hoặc oval
-          borderWidth: 1,
-          borderColor: '#ccc',
-          marginRight: 8,
-          marginBottom: 8,
-          backgroundColor: '#eee',
-     },
-     checkboxSelected: { // Style cho checkbox ngày khi được chọn
-          backgroundColor: '#3498db',
-          borderColor: '#3498db',
-     },
-     checkboxText: { // Style cho text checkbox ngày
-          fontSize: 14,
-          color: '#555',
-     },
-     checkboxTextSelected: { // Style cho text checkbox ngày khi được chọn
-          color: '#fff',
-          fontWeight: 'bold',
-     },
+     // Added styles from AddScheduleModal for consistency if needed, but not used in this modal
+     timePickerButton: { flex: 1, borderWidth: 1, borderColor: '#ccc', padding: 12, borderRadius: 8, backgroundColor: '#f9f9f9', alignItems: 'center', },
+     timeText: { fontSize: 16, color: '#333', },
+     timeContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15, },
+     daysContainer: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 15, marginTop: 5, },
+     checkbox: { paddingVertical: 8, paddingHorizontal: 15, borderRadius: 25, borderWidth: 1, borderColor: '#ccc', marginRight: 8, marginBottom: 8, backgroundColor: '#eee', },
+     checkboxSelected: { backgroundColor: '#3498db', borderColor: '#3498db', },
+     checkboxText: { fontSize: 14, color: '#555', },
+     checkboxTextSelected: { color: '#fff', fontWeight: 'bold', },
 });
-
-// Hàm helper getStatusColor không cần định nghĩa lại ở đây vì đã có ở đầu file.

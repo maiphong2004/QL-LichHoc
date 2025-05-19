@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import moment from 'moment'; // Import moment
+import moment from 'moment';
 import 'moment/locale/vi';
 import React, { useLayoutEffect, useState } from 'react';
 import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -9,11 +9,11 @@ moment.locale('vi');
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
-// Import Modal và Context
-import AddScheduleModal from '@/app/(tabs)/AddScheduleModal'; // Đảm bảo đường dẫn đúng
-import { ScheduleEvent, useAppContext } from '@/context/AppContext'; // Đảm bảo đường dẫn đúng
+// Import Modal và Context - Đảm bảo đường dẫn đúng
+import { ScheduleEvent, useAppContext } from '@/context/AppContext'; // Đường dẫn tuyệt đối đến context
+import AddScheduleModal from '../../components/AddScheduleModal'; // Đường dẫn tương đối trong cùng thư mục (tabs)
 
-// Hàm helper định dạng thời gian cho item lịch học (có thể copy từ HomeworkScreen hoặc định nghĩa riêng)
+// Hàm helper định dạng thời gian cho item lịch học
 const formatTimeRange = (startTime: string, endTime: string): string => {
      return `${moment(startTime, 'HH:mm').format('HH:mm')} - ${moment(endTime, 'HH:mm').format('HH:mm')}`;
 };
@@ -23,12 +23,11 @@ const getVietnameseDayName = (dayKey: string): string => {
      const daysMapVi: { [key: string]: string } = {
           'Mon': 'Thứ Hai', 'Tue': 'Thứ Ba', 'Wed': 'Thứ Tư', 'Thu': 'Thứ Năm', 'Fri': 'Thứ Sáu', 'Sat': 'Thứ Bảy', 'Sun': 'Chủ Nhật'
      };
-     return daysMapVi[dayKey] || dayKey; // Trả về tên tiếng Việt hoặc dayKey gốc nếu không tìm thấy
+     return daysMapVi[dayKey] || dayKey;
 };
 
 
 // Đây là component màn hình Lịch học được render bởi Navigator
-// Chú ý: Nó KHÔNG nhận các props của Modal như visible, onClose, v.v.
 export default function ScheduleScreen() {
      const navigation = useNavigation();
      // Lấy dữ liệu lịch và các hàm thêm/sửa/xóa từ Context
@@ -36,7 +35,7 @@ export default function ScheduleScreen() {
 
      // State để quản lý Modal
      const [isModalVisible, setModalVisible] = useState(false);
-     const [selectedItemToEdit, setSelectedItemToEdit] = useState<ScheduleEvent | null>(null); // Lưu item đang chỉnh sửa
+     const [selectedItemToEdit, setSelectedItemToEdit] = useState<ScheduleEvent | null>(null);
 
      // Cấu hình nút Add ở Header
      useLayoutEffect(() => {
@@ -45,29 +44,28 @@ export default function ScheduleScreen() {
                     <TouchableOpacity
                          style={{ marginRight: 15 }}
                          onPress={() => {
-                              setSelectedItemToEdit(null); // Khi nhấn nút Add, đảm bảo là thêm mới
-                              setModalVisible(true); // Mở Modal
+                              setSelectedItemToEdit(null);
+                              setModalVisible(true);
                          }}
                     >
                          <Ionicons name="add-circle-outline" size={28} color="#007AFF" />
                     </TouchableOpacity>
                ),
-               // Tiêu đề Header cho màn hình này (có thể đặt ở _layout.tsx hoặc ở đây)
-               title: 'Lịch học',
+               title: 'Lịch học', // Tiêu đề Header cho màn hình này
           });
-     }, [navigation]); // Dependency array
+     }, [navigation]);
 
 
      // Hàm render cho mỗi item Lịch học trong FlatList
      const renderScheduleItem = ({ item }: { item: ScheduleEvent }) => {
-          const daysVietnamese = item.daysOfWeek.map(dayKey => getVietnameseDayName(dayKey)).join(', '); // Lấy tên ngày tiếng Việt
+          const daysVietnamese = item.daysOfWeek.map(dayKey => getVietnameseDayName(dayKey)).join(', ');
 
           return (
                <TouchableOpacity
                     style={styles.scheduleItem}
                     onPress={() => {
-                         setSelectedItemToEdit(item); // Khi nhấn vào item, lưu item đó vào state để sửa
-                         setModalVisible(true); // Mở Modal
+                         setSelectedItemToEdit(item);
+                         setModalVisible(true);
                     }}
                >
                     <ThemedText type="defaultSemiBold" style={styles.itemTitle}>{item.subject}</ThemedText>
@@ -87,16 +85,14 @@ export default function ScheduleScreen() {
                {/* Hiển thị danh sách Lịch học */}
                {schedule.length > 0 ? (
                     <FlatList
-                         data={schedule} // Sử dụng dữ liệu lịch từ context
+                         data={schedule}
                          keyExtractor={(item) => item.id}
                          renderItem={renderScheduleItem}
                          contentContainerStyle={styles.flatListContent}
                     />
                ) : (
                     <View style={styles.emptyStateContainer}>
-                         {/* Sửa: Bọc chuỗi text tĩnh trong ThemedText */}
                          <ThemedText style={styles.emptyStateText}>Chưa có lịch học nào được thêm.</ThemedText>
-                         {/* Sửa: Bọc chuỗi text tĩnh trong ThemedText */}
                          <ThemedText style={styles.emptyStateText}>Nhấn nút "+" ở góc trên để thêm mới!</ThemedText>
                     </View>
                )}
@@ -104,27 +100,23 @@ export default function ScheduleScreen() {
 
                {/* Render Modal và truyền các props cần thiết */}
                <AddScheduleModal
-                    visible={isModalVisible} // Modal hiển thị nếu state isModalVisible là true
-                    itemToEdit={selectedItemToEdit} // Truyền item đang chỉnh sửa vào modal
-                    onClose={() => { // Hàm đóng modal
+                    visible={isModalVisible}
+                    itemToEdit={selectedItemToEdit}
+                    onClose={() => {
                          setModalVisible(false);
-                         setSelectedItemToEdit(null); // Reset item đang chỉnh sửa
-                    }}
-                    onSave={(scheduleData) => { // Hàm xử lý lưu từ modal
-                         if (selectedItemToEdit && 'id' in scheduleData) {
-                              // Nếu đang sửa (itemToEdit tồn tại và scheduleData có id), gọi update
-                              updateSchedule(scheduleData as ScheduleEvent);
-                         } else {
-                              // Nếu không (thêm mới), gọi add
-                              addSchedule(scheduleData as Omit<ScheduleEvent, 'id'>);
-                         }
-                         setModalVisible(false); // Đóng modal sau khi lưu
                          setSelectedItemToEdit(null);
                     }}
-                    onDelete={(id) => { // Hàm xử lý xóa từ modal
+                    onSave={(scheduleData) => {
+                         if (selectedItemToEdit && 'id' in scheduleData) {
+                              updateSchedule(scheduleData as ScheduleEvent);
+                         } else {
+                              addSchedule(scheduleData as Omit<ScheduleEvent, 'id'>);
+                         }
+                         setModalVisible(false);
+                         setSelectedItemToEdit(null);
+                    }}
+                    onDelete={(id) => {
                          deleteSchedule(id);
-                         // Không cần setModalVisible(false) ở đây vì hàm deleteSchedule trong context có thể trigger re-render hoặc bạn tự đóng modal sau khi gọi hàm này.
-                         // Tuy nhiên, gọi setModalVisible(false) ở đây là cách đơn giản để đóng modal sau khi nhấn nút xóa trong modal.
                          setModalVisible(false);
                          setSelectedItemToEdit(null);
                     }}
@@ -137,14 +129,14 @@ export default function ScheduleScreen() {
 const styles = StyleSheet.create({
      container: {
           flex: 1,
-          backgroundColor: '#f4f7f6', // Màu nền màn hình
-          paddingHorizontal: 10, // Padding ngang cho toàn màn hình
-          paddingTop: 10, // Padding trên
+          backgroundColor: '#f4f7f6',
+          paddingHorizontal: 10,
+          paddingTop: 10,
      },
      flatListContent: {
-          paddingBottom: 20, // Khoảng trống dưới cùng danh sách
+          paddingBottom: 20,
      },
-     scheduleItem: { // Style cho mỗi item lịch học trong danh sách
+     scheduleItem: {
           backgroundColor: '#fff',
           padding: 15,
           marginBottom: 10,
@@ -154,8 +146,8 @@ const styles = StyleSheet.create({
           shadowOpacity: 0.1,
           shadowRadius: 4,
           elevation: 3,
-          borderLeftWidth: 5, // Viền màu bên trái
-          borderColor: '#3498db', // Màu xanh dương cho lịch học
+          borderLeftWidth: 5,
+          borderColor: '#3498db',
      },
      itemTitle: {
           fontSize: 18,

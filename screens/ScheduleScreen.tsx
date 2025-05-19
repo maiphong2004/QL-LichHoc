@@ -10,7 +10,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
 // Import Modal và Context
-import AddScheduleModal from '@/app/(tabs)/AddScheduleModal'; // Đảm bảo đường dẫn đúng
+import AddScheduleModal from '@/components/AddScheduleModal'; // Đảm bảo đường dẫn đúng
 import { ScheduleEvent, useAppContext } from '@/context/AppContext'; // Đảm bảo đường dẫn đúng
 
 // Hàm helper định dạng thời gian cho item lịch học (có thể copy từ HomeworkScreen hoặc định nghĩa riêng)
