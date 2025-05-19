@@ -32,7 +32,7 @@ export default function TabLayout() {
           },
         }),
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 14,
           marginBottom: Platform.OS === 'android' ? 2 : 0,
         },
         tabBarIconStyle: {
