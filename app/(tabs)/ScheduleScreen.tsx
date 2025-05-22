@@ -10,8 +10,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
 // Import Modal và Context - Đảm bảo đường dẫn đúng
-import { ScheduleEvent, useAppContext } from '@/context/AppContext'; // Đường dẫn tuyệt đối đến context
-import AddScheduleModal from '../../components/AddScheduleModal'; // Đường dẫn tương đối trong cùng thư mục (tabs)
+import { ScheduleEvent, useAppContext } from '@/context/AppContext'; // Import từ context
+import AddScheduleModal from '../../components/AddScheduleModal';
 
 // Hàm helper định dạng thời gian cho item lịch học
 const formatTimeRange = (startTime: string, endTime: string): string => {
@@ -21,105 +21,126 @@ const formatTimeRange = (startTime: string, endTime: string): string => {
 // Hàm helper lấy tên ngày trong tuần bằng tiếng Việt
 const getVietnameseDayName = (dayKey: string): string => {
      const daysMapVi: { [key: string]: string } = {
-          'Mon': 'Thứ Hai', 'Tue': 'Thứ Ba', 'Wed': 'Thứ Tư', 'Thu': 'Thứ Năm', 'Fri': 'Thứ Sáu', 'Sat': 'Thứ Bảy', 'Sun': 'Chủ Nhật'
+          Mon: 'Thứ Hai',
+          Tue: 'Thứ Ba',
+          Wed: 'Thứ Tư',
+          Thu: 'Thứ Năm',
+          Fri: 'Thứ Sáu',
+          Sat: 'Thứ Bảy',
+          Sun: 'Chủ Nhật',
      };
      return daysMapVi[dayKey] || dayKey;
 };
 
-
-// Đây là component màn hình Lịch học được render bởi Navigator
 export default function ScheduleScreen() {
      const navigation = useNavigation();
-     // Lấy dữ liệu lịch và các hàm thêm/sửa/xóa từ Context
-     const { schedule, addSchedule, updateSchedule, deleteSchedule } = useAppContext();
+     // Lấy dữ liệu và hàm từ AppContext
+     const { schedules, addSchedule, updateSchedule, deleteSchedule } = useAppContext();
 
-     // State để quản lý Modal
-     const [isModalVisible, setModalVisible] = useState(false);
-     const [selectedItemToEdit, setSelectedItemToEdit] = useState<ScheduleEvent | null>(null);
+     const [modalVisible, setModalVisible] = useState(false);
+     const [itemToEdit, setItemToEdit] = useState<ScheduleEvent | null>(null);
 
-     // Cấu hình nút Add ở Header
+     // Sắp xếp lịch học theo ngày trong tuần và thời gian
+     const sortedSchedules = React.useMemo(() => {
+          const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+          return [...schedules].sort((a, b) => {
+               const dayA = dayOrder.indexOf(a.daysOfWeek[0]); // Lấy ngày đầu tiên để sắp xếp
+               const dayB = dayOrder.indexOf(b.daysOfWeek[0]);
+
+               if (dayA !== dayB) {
+                    return dayA - dayB;
+               }
+
+               // Nếu cùng ngày, sắp xếp theo thời gian bắt đầu
+               const timeA = moment(a.startTime, 'HH:mm');
+               const timeB = moment(b.startTime, 'HH:mm');
+               return timeA.diff(timeB);
+          });
+     }, [schedules]);
+
+
+     // Cấu hình header bên phải để thêm nút "Thêm lịch học"
      useLayoutEffect(() => {
           navigation.setOptions({
                headerRight: () => (
                     <TouchableOpacity
-                         style={{ marginRight: 15 }}
                          onPress={() => {
-                              setSelectedItemToEdit(null);
+                              setItemToEdit(null); // Đảm bảo là thêm mới
                               setModalVisible(true);
                          }}
+                         style={{ marginRight: 15 }}
                     >
-                         <Ionicons name="add-circle-outline" size={28} color="#007AFF" />
+                         <Ionicons name="add-circle" size={30} color="#3498db" />
                     </TouchableOpacity>
                ),
-               title: 'Lịch học', // Tiêu đề Header cho màn hình này
+               // Cấu hình headerLeft nếu cần hoặc để trống
+               headerLeft: () => null,
+               headerTitle: 'Lịch học', // Đặt tiêu đề cho màn hình
           });
      }, [navigation]);
 
-
-     // Hàm render cho mỗi item Lịch học trong FlatList
-     const renderScheduleItem = ({ item }: { item: ScheduleEvent }) => {
-          const daysVietnamese = item.daysOfWeek.map(dayKey => getVietnameseDayName(dayKey)).join(', ');
-
-          return (
-               <TouchableOpacity
-                    style={styles.scheduleItem}
-                    onPress={() => {
-                         setSelectedItemToEdit(item);
-                         setModalVisible(true);
-                    }}
-               >
-                    <ThemedText type="defaultSemiBold" style={styles.itemTitle}>{item.subject}</ThemedText>
-                    <ThemedText style={styles.itemTime}>{formatTimeRange(item.startTime, item.endTime)}</ThemedText>
-                    <ThemedText style={styles.itemDays}>{daysVietnamese}</ThemedText>
-                    <ThemedText style={styles.itemLocation}>Tại: {item.location}</ThemedText>
-               </TouchableOpacity>
-          );
+     const handleSaveSchedule = async (event: Omit<ScheduleEvent, 'id'> | ScheduleEvent) => {
+          if ('id' in event) {
+               await updateSchedule(event as ScheduleEvent); // Gọi hàm update từ context
+          } else {
+               await addSchedule(event); // Gọi hàm add từ context
+          }
+          setModalVisible(false);
+          setItemToEdit(null);
      };
 
-     // TODO: Thêm bộ lọc/sắp xếp cho Lịch học nếu cần
+     const handleDeleteSchedule = async (id: string) => {
+          await deleteSchedule(id); // Gọi hàm delete từ context
+     };
+
+     const renderScheduleItem = ({ item }: { item: ScheduleEvent }) => (
+          <TouchableOpacity
+               style={styles.scheduleItem}
+               onPress={() => {
+                    setItemToEdit(item);
+                    setModalVisible(true);
+               }}
+          >
+               <View style={styles.scheduleContent}>
+                    <ThemedText style={styles.itemTitle}>{item.title}</ThemedText>
+                    <ThemedText style={styles.itemSubject}>Môn: {item.subject}</ThemedText>
+                    <ThemedText style={styles.itemTime}>
+                         Thời gian: {formatTimeRange(item.startTime, item.endTime)}
+                    </ThemedText>
+                    <ThemedText style={styles.itemDays}>
+                         Ngày: {item.daysOfWeek.map(getVietnameseDayName).join(', ')}
+                    </ThemedText>
+                    {item.location && (
+                         <ThemedText style={styles.itemLocation}>Địa điểm: {item.location}</ThemedText>
+                    )}
+                    {item.notes && (
+                         <ThemedText style={styles.itemNotes}>Ghi chú: {item.notes}</ThemedText>
+                    )}
+               </View>
+               <Ionicons name="chevron-forward" size={24} color="#999" />
+          </TouchableOpacity>
+     );
 
      return (
           <ThemedView style={styles.container}>
-               {/* TODO: Hiển thị bộ lọc/sắp xếp Controls tại đây nếu có */}
+               <FlatList
+                    data={sortedSchedules}
+                    renderItem={renderScheduleItem}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.flatListContent}
+                    ListEmptyComponent={
+                         <ThemedText style={styles.emptyListText}>
+                              Không có lịch học nào. Hãy thêm một lịch học mới!
+                         </ThemedText>
+                    }
+               />
 
-               {/* Hiển thị danh sách Lịch học */}
-               {schedule.length > 0 ? (
-                    <FlatList
-                         data={schedule}
-                         keyExtractor={(item) => item.id}
-                         renderItem={renderScheduleItem}
-                         contentContainerStyle={styles.flatListContent}
-                    />
-               ) : (
-                    <View style={styles.emptyStateContainer}>
-                         <ThemedText style={styles.emptyStateText}>Chưa có lịch học nào được thêm.</ThemedText>
-                         <ThemedText style={styles.emptyStateText}>Nhấn nút "+" ở góc trên để thêm mới!</ThemedText>
-                    </View>
-               )}
-
-
-               {/* Render Modal và truyền các props cần thiết */}
                <AddScheduleModal
-                    visible={isModalVisible}
-                    itemToEdit={selectedItemToEdit}
-                    onClose={() => {
-                         setModalVisible(false);
-                         setSelectedItemToEdit(null);
-                    }}
-                    onSave={(scheduleData) => {
-                         if (selectedItemToEdit && 'id' in scheduleData) {
-                              updateSchedule(scheduleData as ScheduleEvent);
-                         } else {
-                              addSchedule(scheduleData as Omit<ScheduleEvent, 'id'>);
-                         }
-                         setModalVisible(false);
-                         setSelectedItemToEdit(null);
-                    }}
-                    onDelete={(id) => {
-                         deleteSchedule(id);
-                         setModalVisible(false);
-                         setSelectedItemToEdit(null);
-                    }}
+                    visible={modalVisible}
+                    itemToEdit={itemToEdit}
+                    onClose={() => setModalVisible(false)}
+                    onSave={handleSaveSchedule}
+                    onDelete={handleDeleteSchedule}
                />
           </ThemedView>
      );
@@ -148,12 +169,24 @@ const styles = StyleSheet.create({
           elevation: 3,
           borderLeftWidth: 5,
           borderColor: '#3498db',
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+     },
+     scheduleContent: {
+          flex: 1,
+          marginRight: 10,
      },
      itemTitle: {
           fontSize: 18,
           fontWeight: 'bold',
           marginBottom: 5,
           color: '#333',
+     },
+     itemSubject: {
+          fontSize: 15,
+          color: '#555',
+          marginBottom: 3,
      },
      itemTime: {
           fontSize: 15,
@@ -166,19 +199,21 @@ const styles = StyleSheet.create({
           marginBottom: 3,
      },
      itemLocation: {
-          fontSize: 15,
-          color: '#555',
+          fontSize: 14,
+          color: '#666',
+          fontStyle: 'italic',
+          marginBottom: 3,
      },
-     emptyStateContainer: {
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20,
+     itemNotes: {
+          fontSize: 13,
+          color: '#666',
+          marginTop: 5,
+          fontStyle: 'italic',
      },
-     emptyStateText: {
+     emptyListText: {
           textAlign: 'center',
+          marginTop: 50,
           fontSize: 16,
-          color: '#555',
-          marginBottom: 10,
+          color: '#888',
      },
 });

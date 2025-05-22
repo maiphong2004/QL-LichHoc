@@ -1,6 +1,6 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
-import { useNavigation } from '@react-navigation/native';
+// import { Picker } from '@react-native-picker/picker'; // Không cần Picker ở đây
+import { useNavigation } from '@react-navigation/native'; // Vẫn giữ nếu bạn dùng useNavigation cho các mục đích khác
 import moment from 'moment';
 import 'moment/locale/vi';
 import React, { useLayoutEffect, useMemo, useState } from 'react';
@@ -11,361 +11,264 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
 // Import Modal và Context - Đảm bảo đường dẫn đúng
-import AddHomeworkModal from '@/components/AddHomeworkModal'; // Đường dẫn tương đối trong cùng thư mục (tabs)
-import { HomeworkItem, useAppContext } from '@/context/AppContext'; // Đảm bảo đường dẫn đúng
-
+import AddHomeworkModal from '@/components/AddHomeworkModal';
+import { HomeworkItem, useAppContext } from '@/context/AppContext'; // Import từ context
 
 // Hàm helper định dạng ngày hạn chót
 const formatDueDate = (dateString: string) => {
      const date = moment(dateString);
+     const now = moment();
+
      // Kiểm tra nếu đã quá hạn (dueDate trước thời gian hiện tại) VÀ trạng thái chưa hoàn thành
-     if (date.isBefore(moment(), 'minute') && !moment(dateString).isSame(moment(), 'day')) {
-          return 'QUÁ HẠN: ' + date.format('HH:mm, DD/MM/YYYY');
+     if (date.isBefore(now, 'minute')) {
+          // Chỉ hiển thị 'QUÁ HẠN' nếu nó thực sự đã qua và không phải hôm nay
+          if (!date.isSame(now, 'day')) {
+               return 'QUÁ HẠN: ' + date.format('HH:mm, DD/MM/YYYY');
+          }
      }
-     if (date.isSame(moment(), 'day')) {
+     if (date.isSame(now, 'day')) {
           return 'Hôm nay, ' + date.format('HH:mm');
-     } else if (date.isSame(moment().add(1, 'day'), 'day')) {
+     } else if (date.isSame(now.add(1, 'day'), 'day')) {
           return 'Ngày mai, ' + date.format('HH:mm');
-     } else {
-          return date.format('HH:mm, DD/MM/YYYY');
+     } else if (date.isBetween(now, now.add(7, 'days'), 'day', '[]')) {
+          return date.format('dddd, HH:mm'); // Hiển thị "Thứ Hai, HH:mm"
      }
+     return date.format('HH:mm, DD/MM/YYYY');
 };
 
-// Hàm helper lấy màu dựa trên trạng thái hoặc ưu tiên HOẶC QUÁ HẠN
+
+// Hàm helper lấy màu cho borderLeftWidth dựa trên trạng thái và quá hạn
 const getItemColor = (item: HomeworkItem) => {
-     const dueDate = moment(item.dueDate);
-     const isOverdue = dueDate.isBefore(moment(), 'minute') && item.status === 'pending';
-
-     if (isOverdue) {
-          return {
-               borderColor: '#dc3545', // Đỏ cho quá hạn
-               textColor: '#dc3545', // Đỏ cho text quá hạn
-          };
-     }
-
+     const isOverdue = moment(item.dueDate).isBefore(moment()) && item.status !== 'completed';
      if (item.status === 'completed') {
-          return {
-               borderColor: '#28a745', // Xanh lá cho đã hoàn thành
-               textColor: '#28a745', // Xanh lá cho text đã hoàn thành
-          };
+          return '#28a745'; // Green for completed
+     } else if (isOverdue) {
+          return '#dc3545'; // Red for overdue
      }
-
-     // Màu cho trạng thái pending
-     return {
-          borderColor: '#ffc107', // Màu viền vàng cho pending
-          textColor: '#e74c3c', // Màu text đỏ nhạt cho pending
-     };
+     return '#007bff'; // Blue for pending and not overdue
 };
 
-
-// Đây là component màn hình Bài tập được render bởi Navigator
 export default function HomeworkScreen() {
      const navigation = useNavigation();
-     // Lấy dữ liệu bài tập và các hàm thêm/sửa/xóa từ Context
-     const { homework, addHomework, updateHomework, deleteHomework } = useAppContext();
+     // Lấy dữ liệu và hàm từ AppContext
+     const { homeworks, addHomework, updateHomework, deleteHomework } = useAppContext();
 
-     // State để quản lý Modal
-     const [isModalVisible, setModalVisible] = useState(false);
-     const [selectedItemToEdit, setSelectedItemToEdit] = useState<HomeworkItem | null>(null);
+     const [modalVisible, setModalVisible] = useState(false);
+     const [itemToEdit, setItemToEdit] = useState<HomeworkItem | null>(null);
+     const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all');
+     const [sortBy, setSortBy] = useState<'dueDate' | 'subject'>('dueDate');
 
-     // --- State cho Lọc và Sắp xếp ---
-     const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('pending');
-     const [filterSubject, setFilterSubject] = useState<string>('all');
-     const [sortBy, setSortBy] = useState<'dueDate' | 'priority'>('dueDate');
-     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-
-
-     // --- Lấy danh sách các môn học duy nhất ---
-     const uniqueSubjects = useMemo(() => {
-          const subjects = homework.map(item => item.subject);
-          const unique = Array.from(new Set(subjects));
-          return ['all', ...unique.sort()];
-     }, [homework]);
-
-
-     // --- Cấu hình nút Add ở Header ---
+     // Cấu hình header bên phải để thêm nút "Thêm bài tập"
      useLayoutEffect(() => {
           navigation.setOptions({
                headerRight: () => (
                     <TouchableOpacity
-                         style={{ marginRight: 15 }}
                          onPress={() => {
-                              setSelectedItemToEdit(null);
+                              setItemToEdit(null); // Đảm bảo là thêm mới
                               setModalVisible(true);
                          }}
+                         style={{ marginRight: 15 }}
                     >
-                         <Ionicons name="add-circle-outline" size={28} color="#007AFF" />
+                         <Ionicons name="add-circle" size={30} color="#3498db" />
                     </TouchableOpacity>
                ),
-               title: 'Bài tập', // Tiêu đề Header cho màn hình này
+               // Cấu hình headerLeft nếu cần hoặc để trống
+               headerLeft: () => null,
+               headerTitle: 'Danh sách bài tập', // Đặt tiêu đề cho màn hình
           });
      }, [navigation]);
 
+     // Lọc và sắp xếp bài tập
+     const filteredAndSortedHomeworks = useMemo(() => {
+          let filtered = homeworks;
 
-     // --- Xử lý Dữ liệu (Lọc và Sắp xếp) ---
-     const filteredAndSortedHomework = useMemo(() => {
-          let result = [...homework];
-
-          // 1. Lọc dữ liệu
           if (filterStatus !== 'all') {
-               result = result.filter(item => item.status === filterStatus);
-          }
-          if (filterSubject !== 'all') {
-               result = result.filter(item => item.subject === filterSubject);
+               filtered = homeworks.filter((hw) => hw.status === filterStatus);
           }
 
-          // 2. Sắp xếp dữ liệu
-          result.sort((a, b) => {
+          // Sắp xếp: Ưu tiên bài tập quá hạn chưa hoàn thành lên đầu
+          // Sau đó sắp xếp theo ngày hết hạn hoặc môn học
+          return filtered.sort((a, b) => {
+               const aIsOverdue = moment(a.dueDate).isBefore(moment()) && a.status !== 'completed';
+               const bIsOverdue = moment(b.dueDate).isBefore(moment()) && b.status !== 'completed';
+
+               if (aIsOverdue && !bIsOverdue) return -1;
+               if (!aIsOverdue && bIsOverdue) return 1;
+
                if (sortBy === 'dueDate') {
-                    const dateA = moment(a.dueDate);
-                    const dateB = moment(b.dueDate);
-                    if (sortOrder === 'asc') {
-                         return dateA.diff(dateB);
-                    } else {
-                         return dateB.diff(dateA);
-                    }
-               } else if (sortBy === 'priority') {
-                    const priorityOrder = { 'low': 0, 'medium': 1, 'high': 2 };
-                    const priorityA = priorityOrder[a.priority];
-                    const priorityB = priorityOrder[b.priority];
-
-                    if (sortOrder === 'asc') {
-                         return priorityA - priorityB;
-                    } else {
-                         return priorityB - priorityA;
-                    }
+                    return moment(a.dueDate).diff(moment(b.dueDate));
+               } else {
+                    return a.subject.localeCompare(b.subject);
                }
-               return 0;
           });
+     }, [homeworks, filterStatus, sortBy]);
 
-          return result;
-     }, [homework, filterStatus, filterSubject, sortBy, sortOrder]);
+     const handleSaveHomework = async (homework: Omit<HomeworkItem, 'id'> | HomeworkItem) => {
+          if ('id' in homework) {
+               await updateHomework(homework as HomeworkItem); // Gọi hàm update từ context
+          } else {
+               await addHomework(homework); // Gọi hàm add từ context
+          }
+          setModalVisible(false);
+          setItemToEdit(null);
+     };
 
+     const handleDeleteHomework = async (id: string) => {
+          await deleteHomework(id); // Gọi hàm delete từ context
+     };
 
-     // --- Hàm render cho mỗi item bài tập ---
      const renderHomeworkItem = ({ item }: { item: HomeworkItem }) => {
-          const itemColors = getItemColor(item);
-          const isOverdue = moment(item.dueDate).isBefore(moment(), 'minute') && item.status === 'pending';
+          const isOverdue = moment(item.dueDate).isBefore(moment(), 'minute') && item.status !== 'completed';
+          const itemStyle = [
+               styles.homeworkItem,
+               { borderLeftColor: getItemColor(item) },
+               isOverdue && styles.overdueItem,
+          ];
 
           return (
                <TouchableOpacity
-                    style={[
-                         styles.homeworkItem,
-                         {
-                              borderLeftColor: itemColors.borderColor,
-                              opacity: item.status === 'completed' ? 0.6 : 1
-                         },
-                         isOverdue && styles.overdueItem
-                    ]}
+                    style={itemStyle}
                     onPress={() => {
-                         setSelectedItemToEdit(item);
+                         setItemToEdit(item);
                          setModalVisible(true);
                     }}
                >
                     <View style={styles.homeworkContent}>
-                         <ThemedText type="defaultSemiBold" style={styles.itemTitle}>{item.description}</ThemedText>
-                         <ThemedText style={styles.itemSubject}>{item.subject}</ThemedText>
-                         <ThemedText style={[styles.itemDueDate, { color: itemColors.textColor }]}>
-                              {formatDueDate(item.dueDate)}
+                         <ThemedText style={styles.itemTitle}>{item.description}</ThemedText>
+                         <ThemedText style={styles.itemSubject}>Môn: {item.subject}</ThemedText>
+                         <ThemedText style={[styles.itemDueDate, isOverdue && styles.overdueText]}>
+                              Hạn: {formatDueDate(item.dueDate)}
                          </ThemedText>
-                    </View>
-                    <View style={styles.statusIconContainer}>
-                         {item.status === 'completed' ? (
-                              <MaterialIcons name="check-circle" size={24} color={itemColors.borderColor} />
-                         ) : (
-                              <MaterialIcons name={isOverdue ? 'warning' : 'circle'} size={24} color={itemColors.borderColor} />
+                         {item.notes && (
+                              <ThemedText style={styles.itemNotes}>Ghi chú: {item.notes}</ThemedText>
                          )}
                     </View>
+                    <Ionicons
+                         name={item.status === 'completed' ? 'checkmark-circle' : 'hourglass'}
+                         size={28}
+                         color={getItemColor(item)}
+                    />
                </TouchableOpacity>
           );
      };
 
-
      return (
           <ThemedView style={styles.container}>
-               {/* --- Bộ lọc và Sắp xếp Controls --- */}
-               {/* Đã điều chỉnh styles cho phù hợp hơn trên iOS */}
-               <View style={styles.controlsContainer}>
-                    {/* Lọc theo Trạng thái */}
-                    <View style={styles.pickerWrapper}>
-                         <ThemedText style={styles.controlLabel}>Trạng thái:</ThemedText>
-                         <Picker
-                              selectedValue={filterStatus}
-                              onValueChange={(itemValue) => setFilterStatus(itemValue as 'all' | 'pending' | 'completed')}
-                              style={styles.pickerStyle}
+               <View style={styles.filterSortContainer}>
+                    {/* Filter */}
+                    <View style={styles.filterGroup}>
+                         <ThemedText style={styles.filterLabel}>Trạng thái:</ThemedText>
+                         <TouchableOpacity
+                              style={[styles.filterButton, filterStatus === 'all' && styles.filterButtonActive]}
+                              onPress={() => setFilterStatus('all')}
                          >
-                              <Picker.Item label="Tất cả" value="all" />
-                              <Picker.Item label="Chưa xong" value="pending" />
-                              <Picker.Item label="Đã xong" value="completed" />
-                         </Picker>
+                              <ThemedText style={styles.filterButtonText}>Tất cả</ThemedText>
+                         </TouchableOpacity>
+                         <TouchableOpacity
+                              style={[styles.filterButton, filterStatus === 'pending' && styles.filterButtonActive]}
+                              onPress={() => setFilterStatus('pending')}
+                         >
+                              <ThemedText style={styles.filterButtonText}>Đang chờ</ThemedText>
+                         </TouchableOpacity>
+                         <TouchableOpacity
+                              style={[styles.filterButton, filterStatus === 'completed' && styles.filterButtonActive]}
+                              onPress={() => setFilterStatus('completed')}
+                         >
+                              <ThemedText style={styles.filterButtonText}>Hoàn thành</ThemedText>
+                         </TouchableOpacity>
                     </View>
 
-                    {/* Bộ lọc theo Môn học */}
-                    <View style={styles.pickerWrapper}>
-                         <ThemedText style={styles.controlLabel}>Môn học:</ThemedText>
-                         <Picker
-                              selectedValue={filterSubject}
-                              onValueChange={(itemValue) => setFilterSubject(itemValue)}
-                              style={styles.pickerStyle}
+                    {/* Sort */}
+                    <View style={styles.filterGroup}>
+                         <ThemedText style={styles.filterLabel}>Sắp xếp:</ThemedText>
+                         <TouchableOpacity
+                              style={[styles.filterButton, sortBy === 'dueDate' && styles.filterButtonActive]}
+                              onPress={() => setSortBy('dueDate')}
                          >
-                              {uniqueSubjects.map(subject => (
-                                   <Picker.Item key={subject} label={subject === 'all' ? 'Tất cả Môn' : subject} value={subject} />
-                              ))}
-                         </Picker>
-                    </View>
-
-                    {/* Sắp xếp theo */}
-                    <View style={styles.pickerWrapper}>
-                         <ThemedText style={styles.controlLabel}>Sắp xếp:</ThemedText>
-                         <Picker
-                              selectedValue={sortBy}
-                              onValueChange={(itemValue) => setSortBy(itemValue as 'dueDate' | 'priority')}
-                              style={styles.pickerStyle}
+                              <ThemedText style={styles.filterButtonText}>Hạn chót</ThemedText>
+                         </TouchableOpacity>
+                         <TouchableOpacity
+                              style={[styles.filterButton, sortBy === 'subject' && styles.filterButtonActive]}
+                              onPress={() => setSortBy('subject')}
                          >
-                              {sortBy === 'dueDate' ? (
-                                   <>
-                                        <Picker.Item label="Gần nhất" value="asc" />
-                                        <Picker.Item label="Xa nhất" value="desc" />
-                                   </>
-                              ) : (
-                                   <>
-                                        <Picker.Item label="Thấp đến Cao" value="asc" />
-                                        <Picker.Item label="Cao đến Thấp" value="desc" />
-                                   </>
-                              )}
-                         </Picker>
-                    </View>
-
-                    {/* Thứ tự Sắp xếp (Tăng/Giảm) */}
-                    <View style={styles.pickerWrapper}>
-                         <ThemedText style={styles.controlLabel}>Thứ tự:</ThemedText>
-                         <Picker
-                              selectedValue={sortOrder}
-                              onValueChange={(itemValue) => setSortOrder(itemValue as 'asc' | 'desc')}
-                              style={styles.pickerStyle}
-                         >
-                              {sortBy === 'dueDate' ? (
-                                   <>
-                                        <Picker.Item label="Gần nhất" value="asc" />
-                                        <Picker.Item label="Xa nhất" value="desc" />
-                                   </>
-                              ) : (
-                                   <>
-                                        <Picker.Item label="Thấp đến Cao" value="asc" />
-                                        <Picker.Item label="Cao đến Thấp" value="desc" />
-                                   </>
-                              )}
-                         </Picker>
+                              <ThemedText style={styles.filterButtonText}>Môn học</ThemedText>
+                         </TouchableOpacity>
                     </View>
                </View>
 
-
-               {/* --- Danh sách Bài tập --- */}
-               {filteredAndSortedHomework.length > 0 ? (
-                    <FlatList
-                         data={filteredAndSortedHomework}
-                         keyExtractor={(item) => item.id}
-                         renderItem={renderHomeworkItem}
-                         contentContainerStyle={styles.flatListContent}
-                    />
-               ) : (
-                    <View style={styles.emptyStateContainer}>
-                         <ThemedText type="default" style={styles.emptyStateText}>
-                              {homework.length > 0 ? 'Không tìm thấy bài tập phù hợp với bộ lọc.' : 'Chưa có bài tập nào được thêm.'}
+               <FlatList
+                    data={filteredAndSortedHomeworks}
+                    renderItem={renderHomeworkItem}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.flatListContent}
+                    ListEmptyComponent={
+                         <ThemedText style={styles.emptyListText}>
+                              Không có bài tập nào. Hãy thêm một bài tập mới!
                          </ThemedText>
-                         {homework.length === 0 && (
-                              <ThemedText type="default" style={styles.emptyStateText}>
-                                   Nhấn nút "+" ở góc trên để thêm mới!
-                              </ThemedText>
-                         )}
-                    </View>
-               )}
+                    }
+               />
 
-
-               {/* Modal thêm/sửa bài tập */}
                <AddHomeworkModal
-                    visible={isModalVisible}
-                    itemToEdit={selectedItemToEdit}
-                    onClose={() => {
-                         setModalVisible(false);
-                         setSelectedItemToEdit(null);
-                    }}
-                    onSave={(homeworkData) => {
-                         if (selectedItemToEdit && 'id' in homeworkData) {
-                              updateHomework(homeworkData as HomeworkItem);
-                         } else {
-                              addHomework(homeworkData as Omit<HomeworkItem, 'id'>);
-                         }
-                         setModalVisible(false);
-                         setSelectedItemToEdit(null);
-                    }}
-                    onDelete={(id) => {
-                         deleteHomework(id);
-                         setModalVisible(false);
-                         setSelectedItemToEdit(null);
-                    }}
+                    visible={modalVisible}
+                    itemToEdit={itemToEdit}
+                    onClose={() => setModalVisible(false)}
+                    onSave={handleSaveHomework}
+                    onDelete={handleDeleteHomework}
                />
           </ThemedView>
      );
 }
 
-// Định nghĩa styles cho màn hình Bài tập
 const styles = StyleSheet.create({
      container: {
           flex: 1,
           backgroundColor: '#f4f7f6',
+          paddingHorizontal: 10,
+          paddingTop: 10,
      },
-     controlsContainer: { // Container cho bộ lọc và sắp xếp
-          flexDirection: 'row',
-          justifyContent: 'space-around', // Căn đều các Picker
-          alignItems: 'center',
+     filterSortContainer: {
+          marginBottom: 15,
+          backgroundColor: '#fff',
+          borderRadius: 10,
           padding: 10,
-          backgroundColor: '#ecf0f1', // Màu nền nhẹ
-          borderBottomWidth: 1,
-          borderBottomColor: '#ddd',
-          flexWrap: 'wrap', // Cho phép xuống dòng nếu nhiều controls
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 3,
+          elevation: 2,
      },
-     pickerWrapper: { // Container cho mỗi Picker và Label
+     filterGroup: {
           flexDirection: 'row',
           alignItems: 'center',
-          // Đặt width cố định hoặc flexBasis đủ lớn và điều chỉnh flex cho Picker
-          width: Platform.OS === 'ios' ? 160 : 150, // Thử với width cố định cho iOS
-          // flexBasis: Platform.OS === 'ios' ? 160 : 150, // Hoặc flexBasis
-          marginHorizontal: 5, // Khoảng cách giữa các picker wrapper
-          marginBottom: 5, // Khoảng cách dưới nếu wrap
-          // borderWidth: 1, borderColor: 'blue', // Dùng để debug layout
+          marginBottom: 8,
      },
-     controlLabel: {
-          fontSize: 14,
-          marginRight: 5,
+     filterLabel: {
+          fontSize: 15,
           fontWeight: 'bold',
-          color: '#555',
+          marginRight: 10,
+          color: '#333',
      },
-     pickerStyle: { // Style cho Picker component
-          height: 40,
-          // Trên iOS, Picker có thể cần flex: 1 hoặc width cụ thể trong wrapper
-          flex: 1, // Cho phép picker chiếm phần còn lại của wrapper
-          // Nếu dùng width cố định cho wrapper, có thể không cần flex: 1 ở đây
-          // width: Platform.OS === 'ios' ? '100%' : 'auto', // Thử auto trên iOS
-          // borderWidth: 1, borderColor: 'green', // Dùng để debug layout
+     filterButton: {
+          paddingVertical: 7,
+          paddingHorizontal: 12,
+          borderRadius: 20,
+          borderWidth: 1,
+          borderColor: '#ccc',
+          marginRight: 8,
+          backgroundColor: '#f0f0f0',
+     },
+     filterButtonActive: {
+          backgroundColor: '#3498db',
+          borderColor: '#3498db',
+     },
+     filterButtonText: {
+          color: '#333',
+          fontWeight: '500',
      },
      flatListContent: {
-          paddingHorizontal: 15, // Padding ngang danh sách
-          paddingVertical: 10, // Padding dọc danh sách
+          paddingBottom: 20,
      },
-     emptyStateContainer: {
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20,
-     },
-     emptyStateText: {
-          textAlign: 'center',
-          fontSize: 16,
-          color: '#555',
-          marginBottom: 10,
-     },
-     homeworkItem: { // Cập nhật style cho mỗi item bài tập
+     homeworkItem: {
           backgroundColor: '#fff', // Nền trắng
           padding: 18, // Padding lớn hơn
           borderRadius: 10, // Bo góc nhiều hơn
@@ -382,29 +285,42 @@ const styles = StyleSheet.create({
           // border color determined by getItemColor
      },
      overdueItem: {
-          // backgroundColor: '#f8d7da', // Nền nhạt màu đỏ (tùy chọn)
+          // backgroundColor: '#fde0e0', // Nền nhạt màu đỏ (tùy chọn)
      },
      homeworkContent: {
           flex: 1,
           marginRight: 15, // Khoảng cách giữa nội dung và icon
      },
-     itemTitle: { // Style cho tiêu đề bài tập
-          fontSize: 17, // Font size lớn hơn
+     itemTitle: {
+          fontSize: 17,
           fontWeight: 'bold',
           marginBottom: 4,
-          color: '#333', // Màu chữ rõ ràng
+          color: '#333',
      },
-     itemSubject: { // Style cho môn học
+     itemSubject: {
           fontSize: 14,
-          color: '#555', // Màu chữ xám
+          color: '#555',
           marginBottom: 4,
      },
-     itemDueDate: { // Style cho hạn chót
+     itemDueDate: {
           fontSize: 14,
-          fontWeight: 'bold',
-          // Color determined by getItemColor (đã có logic màu đỏ/màu khác)
+          color: '#777',
+          fontWeight: 'bold', // Hạn chót cũng nên đậm
      },
-     statusIconContainer: {
-          paddingLeft: 10, // Khoảng cách trái cho icon container
-     }
+     overdueText: {
+          color: '#dc3545', // Màu đỏ cho chữ "QUÁ HẠN"
+          fontWeight: 'bold',
+     },
+     itemNotes: {
+          fontSize: 13,
+          color: '#666',
+          marginTop: 5,
+          fontStyle: 'italic',
+     },
+     emptyListText: {
+          textAlign: 'center',
+          marginTop: 50,
+          fontSize: 16,
+          color: '#888',
+     },
 });

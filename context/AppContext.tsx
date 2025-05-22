@@ -1,229 +1,259 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+// context/AppContext.tsx
+import React, {
+     createContext,
+     useState,
+     useContext,
+     useEffect,
+     useCallback,
+} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// import * as Notifications from 'expo-notifications'; // Bỏ import Notifications
-import moment from 'moment'; // Vẫn cần moment cho dueDate
-import 'moment/locale/vi';
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
+import moment from 'moment'; // Đảm bảo đã cài đặt moment
+import 'moment/locale/vi'; // Import tiếng Việt
 moment.locale('vi');
-import { ActivityIndicator, StyleSheet, View, LayoutAnimation, UIManager, Platform } from 'react-native';
 
-import { Text } from 'react-native';
-
-// Cần thiết cho LayoutAnimation hoạt động trên Android
-// Phần này có thể giữ hoặc bỏ tùy nhu cầu animation, không liên quan notification
-// if (Platform.OS === 'android') {
-//      if (UIManager.setLayoutAnimationEnabledExperimental) {
-//           UIManager.setLayoutAnimationEnabledExperimental(true);
-//      }
-// }
-
-// ... (các imports và khai báo KEYs, interfaces ScheduleEvent, HomeworkItem giữ nguyên) ...
-const SCHEDULE_STORAGE_KEY = '@MyApp:schedule';
-const HOMEWORK_STORAGE_KEY = '@MyApp:homework';
-const REMINDER_OFFSET_STORAGE_KEY = '@MyApp:reminderOffset'; // Vẫn giữ key để không mất dữ liệu nếu có
-
-export interface ScheduleEvent {
-     id: string;
-     subject: string;
-     startTime: string; // Lưu chỉ giờ phút dạng string 'HH:mm'
-     endTime: string; // Lưu chỉ giờ phút dạng string 'HH:mm'
-     daysOfWeek: string[]; // Mảng các ngày diễn ra (ví dụ: ['Mon', 'Wed'])
-     location: string;
-     // Có thể thêm các thuộc tính khác sau này
-}
+// Đặt trình xử lý thông báo để hiển thị thông báo khi ứng dụng đang chạy ở foreground
+Notifications.setNotificationHandler({
+     handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+          shouldShowBanner: true, // THÊM DÒNG NÀY
+          shouldShowList: true,   // THÊM DÒNG NÀY
+     }),
+});
 
 export interface HomeworkItem {
      id: string;
      description: string;
      subject: string;
-     dueDate: string; // Lưu dạng ISO string
+     dueDate: string; // ISO string for date and time (e.g., "2025-05-28T10:00:00Z")
      status: 'pending' | 'completed';
-     priority: 'low' | 'medium' | 'high';
-     notes: string;
-     // Có thể thêm các thuộc tính khác sau này
+     notes?: string;
+     notificationId?: string; // Thêm trường này để lưu ID thông báo
 }
 
-interface AppContextState {
-     schedule: ScheduleEvent[];
-     homework: HomeworkItem[];
-     addSchedule: (event: Omit<ScheduleEvent, 'id'>) => void;
-     addHomework: (item: Omit<HomeworkItem, 'id'>) => void;
-     updateSchedule: (event: ScheduleEvent) => void;
-     deleteSchedule: (id: string) => void;
-     updateHomework: (item: HomeworkItem) => void;
-     deleteHomework: (id: string) => void;
-     // reminderOffsetMinutes: number; // Bỏ state này
-     // setReminderOffsetMinutes: (minutes: number) => void; // Bỏ hàm này
+export interface ScheduleEvent {
+     id: string;
+     title: string;
+     subject: string;
+     startTime: string; // HH:mm
+     endTime: string; // HH:mm
+     daysOfWeek: ('Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun')[];
+     location?: string;
+     notes?: string;
 }
 
-
-const AppContext = createContext<AppContextState | undefined>(undefined);
-
-interface AppProviderProps {
-     children: ReactNode;
+interface AppContextType {
+     homeworks: HomeworkItem[];
+     schedules: ScheduleEvent[];
+     addHomework: (homework: Omit<HomeworkItem, 'id'>) => Promise<void>;
+     updateHomework: (homework: HomeworkItem) => Promise<void>;
+     deleteHomework: (id: string) => Promise<void>;
+     addSchedule: (event: Omit<ScheduleEvent, 'id'>) => Promise<void>;
+     updateSchedule: (event: ScheduleEvent) => Promise<void>;
+     deleteSchedule: (id: string) => Promise<void>;
 }
 
-export const AppProvider = ({ children }: AppProviderProps) => {
-     const [schedule, setSchedule] = useState<ScheduleEvent[]>([]);
-     const [homework, setHomework] = useState<HomeworkItem[]>([]);
-     // const [reminderOffsetMinutes, setReminderOffsetMinutes] = useState(15); // Bỏ state này
-     const [isLoading, setIsLoading] = useState(true);
+const AppContext = createContext<AppContextType | undefined>(undefined);
 
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
+     children,
+}) => {
+     const [homeworks, setHomeworks] = useState<HomeworkItem[]>([]);
+     const [schedules, setSchedules] = useState<ScheduleEvent[]>([]);
 
-     // --- Hàm Lên lịch Thông báo cho Bài tập (Bỏ logic) ---
-     const scheduleHomeworkNotification = async (item: HomeworkItem) => {
-          // Logic lên lịch đã được bỏ
-          console.log(`Notification scheduling logic for homework item ${item.id} is skipped.`);
-     };
-     // --- Hàm Hủy Thông báo cho Bài tập (Bỏ logic) ---
-     const cancelHomeworkNotification = async (itemId: string) => {
-          // Logic hủy thông báo đã được bỏ
-          console.log(`Notification cancellation logic for homework item ${itemId} is skipped.`);
-     };
-     // --- Hàm Lên lịch Thông báo cho Lịch học (Bỏ logic) ---
-     const scheduleScheduleNotifications = async (event: ScheduleEvent) => {
-          // Logic lên lịch đã được bỏ
-          console.log(`Notification scheduling logic for schedule event ${event.id} is skipped.`);
-     };
-     // --- Hàm Hủy Thông báo cho Lịch học (Bỏ logic) ---
-     const cancelScheduleNotifications = async (eventId: string) => {
-          // Logic hủy thông báo đã được bỏ
-          console.log(`Notification cancellation logic for schedule event ${eventId} is skipped.`);
-     };
-
-
-     // --- Effect để Tải/Lưu dữ liệu và cài đặt (Giữ nguyên logic tải dữ liệu) ---
-     useEffect(() => {
-          const loadDataAndSettings = async () => {
-               try {
-                    const storedSchedule = await AsyncStorage.getItem(SCHEDULE_STORAGE_KEY);
-                    const storedHomework = await AsyncStorage.getItem(HOMEWORK_STORAGE_KEY);
-                    // const storedOffset = await AsyncStorage.getItem(REMINDER_OFFSET_STORAGE_KEY); // Bỏ tải offset nếu không dùng
-
-                    if (storedSchedule !== null) setSchedule(JSON.parse(storedSchedule));
-                    if (storedHomework !== null) setHomework(JSON.parse(storedHomework));
-                    // if (storedOffset !== null) setReminderOffsetMinutes(parseInt(storedOffset, 10)); // Bỏ set offset nếu không dùng
-
-               } catch (error) {
-                    console.error("Failed to load data from AsyncStorage", error);
-               } finally {
-                    setIsLoading(false);
-               }
-          };
-          loadDataAndSettings();
+     // Hàm yêu cầu quyền thông báo
+     const requestNotificationPermissions = useCallback(async () => {
+          const { status: existingStatus } =
+               await Notifications.getPermissionsAsync();
+          let finalStatus = existingStatus;
+          if (existingStatus !== 'granted') {
+               const { status } = await Notifications.requestPermissionsAsync();
+               finalStatus = status;
+          }
+          if (finalStatus !== 'granted') {
+               console.log('Failed to get push token for push notification!');
+               return false;
+          }
+          // Cài đặt kênh thông báo cho Android (quan trọng cho Android 8.0 trở lên)
+          if (Platform.OS === 'android') {
+               await Notifications.setNotificationChannelAsync('homework_reminders', {
+                    name: 'Nhắc nhở bài tập',
+                    importance: Notifications.AndroidImportance.HIGH,
+                    vibrationPattern: [0, 250, 250, 250],
+                    lightColor: '#FF231F7C',
+                    sound: 'default', // Có thể tùy chỉnh âm thanh thông báo
+               });
+          }
+          return true;
      }, []);
 
+     useEffect(() => {
+          requestNotificationPermissions();
+          const loadData = async () => {
+               try {
+                    const storedHomeworks = await AsyncStorage.getItem('homeworks');
+                    const storedSchedules = await AsyncStorage.getItem('schedules');
+                    if (storedHomeworks) {
+                         setHomeworks(JSON.parse(storedHomeworks));
+                    }
+                    if (storedSchedules) {
+                         setSchedules(JSON.parse(storedSchedules));
+                    }
+               } catch (error) {
+                    console.error('Failed to load data from AsyncStorage', error);
+               }
+          };
+          loadData();
+     }, [requestNotificationPermissions]); // Thêm requestNotificationPermissions vào dependency array
 
      useEffect(() => {
-          if (isLoading) return;
           const saveData = async () => {
                try {
-                    await AsyncStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(schedule));
-                    console.log("Schedule data saved!");
+                    await AsyncStorage.setItem('homeworks', JSON.stringify(homeworks));
+                    await AsyncStorage.setItem('schedules', JSON.stringify(schedules));
                } catch (error) {
-                    console.error("Failed to save schedule data", error);
+                    console.error('Failed to save data to AsyncStorage', error);
                }
           };
           saveData();
-     }, [schedule, isLoading]);
+     }, [homeworks, schedules]);
 
-
-     useEffect(() => {
-          if (isLoading) return;
-          const saveData = async () => {
-               try {
-                    await AsyncStorage.setItem(HOMEWORK_STORAGE_KEY, JSON.stringify(homework));
-                    console.log("Homework data saved!");
-               } catch (error) {
-                    console.error("Failed to save homework data", error);
-               }
-          };
-          saveData();
-     }, [homework, isLoading]);
-
-     // Bỏ effect lưu reminderOffsetMinutes nếu không dùng
-     // useEffect(() => {
-     //       if (isLoading) return;
-     //       const saveReminderOffset = async () => {
-     //            try {
-     //                 await AsyncStorage.setItem(REMINDER_OFFSET_STORAGE_KEY, reminderOffsetMinutes.toString());
-     //                 console.log("Reminder offset saved!");
-     //            } catch (error) {
-     //                 console.error("Failed to save reminder offset", error);
-     //            }
-     //       };
-     //       saveReminderOffset();
-     // }, [reminderOffsetMinutes, isLoading]);
-
-
-     // --- Effect để Lên lịch lại tất cả thông báo (Bỏ logic) ---
-     useEffect(() => {
-          if (!isLoading) {
-               console.log("Notification rescheduling logic is skipped.");
-               // Logic lên lịch/hủy đã bỏ
+     // Hàm lập lịch thông báo
+     const scheduleHomeworkNotification = async (
+          homework: HomeworkItem,
+     ): Promise<string | undefined> => {
+          const hasPermission = await requestNotificationPermissions();
+          if (!hasPermission) {
+               console.log('Không có quyền gửi thông báo.');
+               return;
           }
-     }, [isLoading, homework, schedule]); // Bỏ reminderOffsetMinutes khỏi dependencies
 
+          const dueDateMoment = moment(homework.dueDate);
+          const notificationTime = moment(dueDateMoment).subtract(5, 'minutes');
 
-     // --- Hàm Thêm/Cập nhật/Xóa dữ liệu (Sửa để bỏ gọi hàm notification) ---
-     const addSchedule = (event: Omit<ScheduleEvent, 'id'>) => {
-          const newEvent: ScheduleEvent = { id: Date.now().toString(), ...event };
-          setSchedule(prevSchedule => [...prevSchedule, newEvent]);
-          // scheduleScheduleNotifications(newEvent); // Bỏ gọi hàm lên lịch
+          // Không lập lịch nếu thời gian thông báo đã qua
+          if (notificationTime.isBefore(moment())) {
+               console.log('Thời gian thông báo đã qua, không thể lập lịch.');
+               return;
+          }
+
+          try {
+               const id = await Notifications.scheduleNotificationAsync({
+                    content: {
+                         title: 'Sắp hết hạn bài tập! 📚',
+                         body: `${homework.description} môn ${homework.subject} sẽ hết hạn sau 5 phút.`,
+                         data: { type: 'homework', homeworkId: homework.id }, // Dữ liệu bổ sung
+                    },
+                    trigger: {
+                         date: notificationTime.toDate(),
+                         channelId: 'homework_reminders', // Sử dụng kênh đã định nghĩa cho Android
+                    },
+               });
+               console.log(
+                    `Thông báo bài tập "${homework.description}" (ID: ${homework.id}) đã được lập lịch với Notification ID: ${id}`,
+               );
+               return id;
+          } catch (error) {
+               console.error('Lỗi khi lập lịch thông báo:', error);
+               return undefined;
+          }
      };
 
-     const addHomework = (item: Omit<HomeworkItem, 'id'>) => {
-          const newItem: HomeworkItem = { id: Date.now().toString(), ...item };
-          setHomework(prevHomework => [...prevHomework, newItem]);
-          // scheduleHomeworkNotification(newItem); // Bỏ gọi hàm lên lịch
+     // Hàm hủy thông báo
+     const cancelHomeworkNotification = async (notificationId?: string) => {
+          if (notificationId) {
+               try {
+                    await Notifications.cancelScheduledNotificationAsync(notificationId);
+                    console.log(`Thông báo với Notification ID ${notificationId} đã bị hủy.`);
+               } catch (error) {
+                    console.error('Lỗi khi hủy thông báo:', error);
+               }
+          }
      };
 
-     const updateSchedule = (event: ScheduleEvent) => {
-          setSchedule(prevSchedule => prevSchedule.map(item => item.id === event.id ? event : item));
-          // cancelScheduleNotifications(event.id); // Bỏ gọi hàm hủy
-          // scheduleScheduleNotifications(event); // Bỏ gọi hàm lên lịch
+     const addHomework = async (newHomework: Omit<HomeworkItem, 'id'>) => {
+          const id = Date.now().toString(); // Tạo ID duy nhất
+          const homeworkWithId: HomeworkItem = {
+               ...newHomework,
+               id,
+               status: 'pending',
+          };
+
+          // Lập lịch thông báo và lưu notificationId
+          const notificationId = await scheduleHomeworkNotification(homeworkWithId);
+          if (notificationId) {
+               homeworkWithId.notificationId = notificationId;
+          }
+
+          setHomeworks((prev) => [...prev, homeworkWithId]);
      };
 
-     const deleteSchedule = (id: string) => {
-          setSchedule(prevSchedule => prevSchedule.filter(item => item.id !== id));
-          // cancelScheduleNotifications(id); // Bỏ gọi hàm hủy
-     };
+     const updateHomework = async (updatedHomework: HomeworkItem) => {
+          // 1. Hủy thông báo cũ nếu có
+          if (updatedHomework.notificationId) {
+               await cancelHomeworkNotification(updatedHomework.notificationId);
+          }
 
-     const updateHomework = (item: HomeworkItem) => {
-          setHomework(prevHomework => prevHomework.map(hw => hw.id === item.id ? item : hw));
-          // scheduleHomeworkNotification(item); // Bỏ gọi hàm lên lịch
-     };
+          // 2. Lập lịch thông báo mới nếu bài tập chưa hoàn thành VÀ hạn chót còn trong tương lai (ít nhất 5 phút)
+          let newNotificationId: string | undefined = undefined;
+          if (
+               updatedHomework.status !== 'completed' && // Chỉ thông báo nếu chưa hoàn thành
+               moment(updatedHomework.dueDate).isAfter(moment().add(5, 'minutes')) // Và còn ít nhất 5 phút
+          ) {
+               newNotificationId = await scheduleHomeworkNotification(updatedHomework);
+          }
 
-     const deleteHomework = (id: string) => {
-          setHomework(prevHomework => prevHomework.filter(hw => hw.id !== id));
-          // cancelHomeworkNotification(id); // Bỏ gọi hàm hủy
-     };
-
-
-
-     const contextValue: AppContextState = {
-          schedule,
-          homework,
-          addSchedule,
-          addHomework,
-          updateSchedule,
-          deleteSchedule,
-          updateHomework,
-          deleteHomework,
-          // reminderOffsetMinutes, // Bỏ khỏi context
-          // setReminderOffsetMinutes, // Bỏ khỏi context
-     };
-
-     if (isLoading) {
-          return (
-               <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#3498db" />
-                    <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
-               </View>
+          // Cập nhật trạng thái bài tập với notificationId mới (hoặc undefined nếu đã hủy)
+          setHomeworks((prev) =>
+               prev.map((hw) =>
+                    hw.id === updatedHomework.id
+                         ? { ...updatedHomework, notificationId: newNotificationId }
+                         : hw,
+               ),
           );
-     }
+     };
+
+     const deleteHomework = async (id: string) => {
+          const homeworkToDelete = homeworks.find((hw) => hw.id === id);
+          if (homeworkToDelete && homeworkToDelete.notificationId) {
+               await cancelHomeworkNotification(homeworkToDelete.notificationId); // Hủy thông báo liên quan
+          }
+          setHomeworks((prev) => prev.filter((hw) => hw.id !== id));
+     };
+
+     const addSchedule = async (newEvent: Omit<ScheduleEvent, 'id'>) => {
+          const id = Date.now().toString();
+          setSchedules((prev) => [...prev, { ...newEvent, id }]);
+     };
+
+     const updateSchedule = async (updatedEvent: ScheduleEvent) => {
+          setSchedules((prev) =>
+               prev.map((event) =>
+                    event.id === updatedEvent.id ? updatedEvent : event,
+               ),
+          );
+     };
+
+     const deleteSchedule = async (id: string) => {
+          setSchedules((prev) => prev.filter((event) => event.id !== id));
+     };
 
      return (
-          <AppContext.Provider value={contextValue}>
+          <AppContext.Provider
+               value={{
+                    homeworks,
+                    schedules,
+                    addHomework,
+                    updateHomework,
+                    deleteHomework,
+                    addSchedule,
+                    updateSchedule,
+                    deleteSchedule,
+               }}
+          >
                {children}
           </AppContext.Provider>
      );
@@ -236,17 +266,3 @@ export const useAppContext = () => {
      }
      return context;
 };
-
-const styles = StyleSheet.create({
-     loadingContainer: {
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#f4f7f6',
-     },
-     loadingText: {
-          marginTop: 10,
-          fontSize: 16,
-          color: '#555',
-     }
-});

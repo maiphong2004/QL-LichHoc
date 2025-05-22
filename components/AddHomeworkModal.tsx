@@ -1,3 +1,4 @@
+// components/AddHomeworkModal.tsx
 import React, { useState, useEffect } from 'react';
 import {
      StyleSheet,
@@ -8,12 +9,12 @@ import {
      Platform,
      TouchableOpacity,
      ScrollView,
-     Alert, // Import Alert
-     Pressable, // Import Pressable
+     Alert,
+     Pressable,
 } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
+// import { Picker } from '@react-native-picker/picker'; // Không cần Picker ở đây nữa
 import moment from 'moment';
 import 'moment/locale/vi';
 moment.locale('vi');
@@ -21,7 +22,6 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
 // Import kiểu dữ liệu HomeworkItem từ context
 import { HomeworkItem } from '@/context/AppContext';
-
 
 // Hàm helper lấy màu dựa trên trạng thái
 const getStatusColor = (status: string) => {
@@ -35,188 +35,170 @@ interface AddHomeworkModalProps {
      itemToEdit: HomeworkItem | null; // Item bài tập cần sửa (hoặc null nếu đang thêm mới)
      onClose: () => void;
      onSave: (homework: Omit<HomeworkItem, 'id'> | HomeworkItem) => void; // onSave có thể nhận item mới hoặc item đã sửa
-     onDelete: (id: string) => void; // Hàm xóa bài tập
+     onDelete: (id: string) => void;
 }
 
-export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave, onDelete }: AddHomeworkModalProps) {
+const AddHomeworkModal: React.FC<AddHomeworkModalProps> = ({
+     visible,
+     itemToEdit,
+     onClose,
+     onSave,
+     onDelete,
+}) => {
      const [description, setDescription] = useState('');
      const [subject, setSubject] = useState('');
      const [dueDate, setDueDate] = useState(new Date());
+     const [status, setStatus] = useState<'pending' | 'completed'>('pending');
+     const [notes, setNotes] = useState('');
      const [showDatePicker, setShowDatePicker] = useState(false);
      const [showTimePicker, setShowTimePicker] = useState(false);
-     const [priority, setPriority] = useState<HomeworkItem['priority']>('medium');
-     const [notes, setNotes] = useState('');
-     const [status, setStatus] = useState<HomeworkItem['status']>('pending');
 
-     const isEditing = itemToEdit !== null;
+     // Thêm state để lưu notificationId nếu có (từ itemToEdit)
+     const [notificationId, setNotificationId] = useState<string | undefined>(undefined);
 
-     // Effect để điền dữ liệu vào form khi modal mở ở chế độ sửa
      useEffect(() => {
-          if (visible) {
-               if (isEditing && itemToEdit) {
-                    setDescription(itemToEdit.description);
-                    setSubject(itemToEdit.subject);
-                    setDueDate(moment(itemToEdit.dueDate).toDate());
-                    setPriority(itemToEdit.priority);
-                    setNotes(itemToEdit.notes);
-                    setStatus(itemToEdit.status);
-               } else {
-                    // Reset form khi thêm mới
-                    setDescription('');
-                    setSubject('');
-                    setDueDate(new Date());
-                    setPriority('medium');
-                    setNotes('');
-                    setStatus('pending');
-               }
+          if (itemToEdit) {
+               setDescription(itemToEdit.description);
+               setSubject(itemToEdit.subject);
+               setDueDate(moment(itemToEdit.dueDate).toDate());
+               setStatus(itemToEdit.status);
+               setNotes(itemToEdit.notes || '');
+               setNotificationId(itemToEdit.notificationId); // Tải notificationId từ itemToEdit
+          } else {
+               // Reset form khi thêm mới
+               setDescription('');
+               setSubject('');
+               setDueDate(new Date());
+               setStatus('pending');
+               setNotes('');
+               setNotificationId(undefined); // Reset notificationId khi thêm mới
           }
-     }, [visible, itemToEdit, isEditing]);
+     }, [itemToEdit, visible]); // Thêm 'visible' vào dependency array để reset khi mở modal
 
-
-     const onChangeDate = (event: any, selectedDate?: Date) => {
+     const handleDateChange = (event: any, selectedDate?: Date) => {
           const currentDate = selectedDate || dueDate;
           setShowDatePicker(Platform.OS === 'ios');
           setDueDate(currentDate);
-          if (Platform.OS !== 'ios') {
-               setShowTimePicker(true);
-          }
      };
 
-     const onChangeTime = (event: any, selectedTime?: Date) => {
+     const handleTimeChange = (event: any, selectedTime?: Date) => {
           const currentTime = selectedTime || dueDate;
           setShowTimePicker(Platform.OS === 'ios');
           setDueDate(currentTime);
-          if (Platform.OS === 'android') {
-               setShowDatePicker(false);
-          }
      };
 
-
-     // Xử lý khi nhấn nút Lưu
      const handleSave = () => {
-          if (!description || !subject) {
-               Alert.alert('Lỗi', 'Vui lòng nhập Mô tả và Môn học.');
+          if (!description.trim() || !subject.trim()) {
+               Alert.alert('Lỗi', 'Vui lòng nhập mô tả và môn học.');
                return;
           }
 
-          const homeworkData = {
-               description,
-               subject,
-               dueDate: dueDate.toISOString(),
-               priority,
-               notes,
-               status,
-          };
-
-          if (isEditing) {
-               if (itemToEdit) {
-                    const updatedHomework: HomeworkItem = {
-                         id: itemToEdit.id,
-                         ...homeworkData,
-                    };
-                    onSave(updatedHomework);
-               } else {
-                    console.error("Lỗi (handleSave): Đang ở chế độ sửa nhưng itemToEdit là null/undefined");
-                    Alert.alert("Lỗi", "Không thể lưu thay đổi. Dữ liệu không hợp lệ.");
-                    return;
+          // Tạo đối tượng bài tập để truyền lên onSave
+          const homeworkData: Omit<HomeworkItem, 'id'> | HomeworkItem = itemToEdit
+               ? {
+                    ...itemToEdit, // Giữ lại ID và các thuộc tính khác của itemToEdit
+                    description,
+                    subject,
+                    dueDate: moment(dueDate).toISOString(), // Lưu dưới dạng ISO string
+                    status,
+                    notes,
+                    notificationId, // Đảm bảo notificationId được truyền đi khi cập nhật
                }
-          } else {
-               onSave(homeworkData as Omit<HomeworkItem, 'id'>);
-          }
-
+               : {
+                    description,
+                    subject,
+                    dueDate: moment(dueDate).toISOString(),
+                    status,
+                    notes,
+                    // notificationId sẽ được gán trong AppContext khi thêm mới
+               };
+          onSave(homeworkData);
           onClose();
      };
 
-     // Xử lý khi nhấn nút Xóa
      const handleDelete = () => {
-          if (!isEditing || !itemToEdit) {
-               console.warn("Không thể xóa (handleDelete): Không ở chế độ sửa hoặc itemToEdit là null/undefined");
-               Alert.alert("Lỗi", "Không thể xóa. Dữ liệu không hợp lệ.");
-               return;
-          }
-
-
-          Alert.alert(
-               "Xác nhận xóa",
-               "Bạn có chắc chắn muốn xóa bài tập này?",
-               [
-                    {
-                         text: "Hủy",
-                         style: "cancel"
-                    },
-                    {
-                         text: "Xóa",
-                         onPress: () => {
-                              onDelete(itemToEdit.id);
-                              onClose();
+          if (itemToEdit) {
+               Alert.alert(
+                    'Xác nhận xóa',
+                    `Bạn có chắc chắn muốn xóa bài tập "${itemToEdit.description}"?`,
+                    [
+                         {
+                              text: 'Hủy',
+                              style: 'cancel',
                          },
-                         style: "destructive"
-                    }
-               ]
-          );
+                         {
+                              text: 'Xóa',
+                              onPress: () => {
+                                   onDelete(itemToEdit.id);
+                                   onClose();
+                              },
+                              style: 'destructive',
+                         },
+                    ],
+               );
+          }
      };
-
-     // Hàm toggle trạng thái Hoàn thành/Chưa hoàn thành
-     const toggleStatus = () => {
-          setStatus(prevStatus => prevStatus === 'pending' ? 'completed' : 'pending');
-     };
-
 
      return (
           <Modal
-               visible={visible}
                animationType="slide"
                transparent={true}
+               visible={visible}
                onRequestClose={onClose}
           >
-               <TouchableOpacity
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={onClose}
-               >
-                    <Pressable
-                         style={styles.modalContent}
-                         onPress={() => { }}
-                    >
-                         <View style={styles.modalHeader}>
-                              <ThemedText type="title">{isEditing ? 'Sửa Bài tập' : 'Thêm Bài tập mới'}</ThemedText>
-                              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                                   <Ionicons name="close-circle-outline" size={30} color="#555" />
-                              </TouchableOpacity>
-                         </View>
+               <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                         <ScrollView contentContainerStyle={styles.scrollViewContent}>
+                              <ThemedText style={styles.modalTitle}>
+                                   {itemToEdit ? 'Sửa bài tập' : 'Thêm bài tập mới'}
+                              </ThemedText>
 
-                         <ScrollView contentContainerStyle={styles.formScrollViewContent}>
-                              <ThemedText style={styles.label}>Mô tả Bài tập:</ThemedText>
                               <TextInput
                                    style={styles.input}
+                                   placeholder="Mô tả bài tập (ví dụ: Làm bài tập chương 1)"
                                    value={description}
                                    onChangeText={setDescription}
-                                   placeholder="Nhập mô tả bài tập"
-                                   placeholderTextColor="#999"
+                                   placeholderTextColor="#888"
                               />
-
-                              <ThemedText style={styles.label}>Môn học:</ThemedText>
                               <TextInput
                                    style={styles.input}
+                                   placeholder="Môn học (ví dụ: Toán cao cấp)"
                                    value={subject}
                                    onChangeText={setSubject}
-                                   placeholder="Nhập môn học"
-                                   placeholderTextColor="#999"
+                                   placeholderTextColor="#888"
                               />
 
-                              <ThemedText style={styles.label}>Hạn chót:</ThemedText>
-                              <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateDisplay}>
-                                   <ThemedText>{moment(dueDate).format('HH:mm, DD/MM/YYYY')}</ThemedText>
-                              </TouchableOpacity>
+                              <ThemedText style={styles.label}>Ngày và giờ hết hạn:</ThemedText>
+                              <View style={styles.dateTimeContainer}>
+                                   <TouchableOpacity
+                                        onPress={() => setShowDatePicker(true)}
+                                        style={styles.datePickerButton}
+                                   >
+                                        <Ionicons name="calendar-outline" size={20} color="#3498db" />
+                                        <ThemedText style={styles.dateText}>
+                                             {moment(dueDate).format('DD/MM/YYYY')}
+                                        </ThemedText>
+                                   </TouchableOpacity>
+
+                                   <TouchableOpacity
+                                        onPress={() => setShowTimePicker(true)}
+                                        style={styles.timePickerButton}
+                                   >
+                                        <Ionicons name="time-outline" size={20} color="#3498db" />
+                                        <ThemedText style={styles.timeText}>
+                                             {moment(dueDate).format('HH:mm')}
+                                        </ThemedText>
+                                   </TouchableOpacity>
+                              </View>
 
                               {showDatePicker && (
                                    <DateTimePicker
                                         testID="datePicker"
                                         value={dueDate}
                                         mode="date"
-                                        is24Hour={true}
-                                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                        onChange={onChangeDate}
+                                        display="default"
+                                        onChange={handleDateChange}
+                                        minimumDate={new Date()} // Không cho chọn ngày quá khứ
                                    />
                               )}
                               {showTimePicker && (
@@ -224,79 +206,102 @@ export default function AddHomeworkModal({ visible, itemToEdit, onClose, onSave,
                                         testID="timePicker"
                                         value={dueDate}
                                         mode="time"
-                                        is24Hour={true}
-                                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                        onChange={onChangeTime}
+                                        display="default"
+                                        onChange={handleTimeChange}
                                    />
                               )}
-                              {Platform.OS === 'ios' && (showDatePicker || showTimePicker) && (
-                                   <Button title="Xong" onPress={() => { setShowDatePicker(false); setShowTimePicker(false); }} />
-                              )}
 
-
-                              <ThemedText style={styles.label}>Mức độ ưu tiên:</ThemedText>
-                              {/* Đã điều chỉnh style cho pickerContainer và pickerStyle */}
-                              <View style={styles.pickerContainer}>
-                                   <Picker
-                                        selectedValue={priority}
-                                        onValueChange={(itemValue, itemIndex) =>
-                                             setPriority(itemValue as HomeworkItem['priority'])
-                                        }
-                                        style={styles.pickerStyle}
-                                   // itemStyle={Platform.OS === 'ios' ? { height: 40, fontSize: 16 } : undefined} // Có thể tùy chỉnh itemStyle cho iOS
+                              <ThemedText style={styles.label}>Trạng thái:</ThemedText>
+                              <View style={styles.statusContainer}>
+                                   <Pressable
+                                        style={[
+                                             styles.statusOption,
+                                             status === 'pending' && {
+                                                  borderColor: getStatusColor('pending'),
+                                                  backgroundColor: getStatusColor('pending') + '1A',
+                                             },
+                                        ]}
+                                        onPress={() => setStatus('pending')}
                                    >
-                                        <Picker.Item label="Thấp" value="low" />
-                                        <Picker.Item label="Trung bình" value="medium" />
-                                        <Picker.Item label="Cao" value="high" />
-                                   </Picker>
+                                        <Ionicons
+                                             name="hourglass-outline"
+                                             size={20}
+                                             color={getStatusColor('pending')}
+                                        />
+                                        <ThemedText
+                                             style={[
+                                                  styles.statusText,
+                                                  { color: getStatusColor('pending') },
+                                             ]}
+                                        >
+                                             Đang chờ
+                                        </ThemedText>
+                                   </Pressable>
+                                   <Pressable
+                                        style={[
+                                             styles.statusOption,
+                                             status === 'completed' && {
+                                                  borderColor: getStatusColor('completed'),
+                                                  backgroundColor: getStatusColor('completed') + '1A',
+                                             },
+                                        ]}
+                                        onPress={() => setStatus('completed')}
+                                   >
+                                        <Ionicons
+                                             name="checkmark-circle-outline"
+                                             size={20}
+                                             color={getStatusColor('completed')}
+                                        />
+                                        <ThemedText
+                                             style={[
+                                                  styles.statusText,
+                                                  { color: getStatusColor('completed') },
+                                             ]}
+                                        >
+                                             Hoàn thành
+                                        </ThemedText>
+                                   </Pressable>
                               </View>
 
                               <ThemedText style={styles.label}>Ghi chú:</ThemedText>
                               <TextInput
                                    style={[styles.input, styles.notesInput]}
+                                   placeholder="Ghi chú thêm về bài tập..."
                                    value={notes}
                                    onChangeText={setNotes}
-                                   placeholder="Ghi chú thêm (tùy chọn)"
-                                   placeholderTextColor="#999"
-                                   multiline={true}
+                                   multiline
                                    numberOfLines={4}
+                                   placeholderTextColor="#888"
                               />
-
-                              {isEditing && (
-                                   <>
-                                        <ThemedText style={styles.label}>Trạng thái:</ThemedText>
-                                        <TouchableOpacity onPress={toggleStatus} style={styles.statusToggle}>
-                                             <MaterialIcons
-                                                  name={status === 'completed' ? 'check-circle' : 'circle'}
-                                                  size={24}
-                                                  color={getStatusColor(status)}
-                                             />
-                                             <ThemedText style={styles.statusText}>
-                                                  {status === 'completed' ? 'Đã hoàn thành' : 'Chưa hoàn thành'}
-                                             </ThemedText>
-                                        </TouchableOpacity>
-                                   </>
-                              )}
-
-
                          </ScrollView>
 
                          <View style={styles.modalFooter}>
-                              {isEditing && (
-                                   <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
-                                        <Ionicons name="trash-outline" size={24} color="#dc3545" />
+                              {itemToEdit && (
+                                   <TouchableOpacity
+                                        onPress={handleDelete}
+                                        style={styles.deleteButton}
+                                   >
+                                        <MaterialIcons name="delete" size={24} color="#dc3545" />
                                         <ThemedText style={styles.deleteButtonText}>Xóa</ThemedText>
                                    </TouchableOpacity>
                               )}
                               <View style={styles.saveButtonContainer}>
-                                   <Button title={isEditing ? "Lưu Thay đổi" : "Lưu Bài tập"} onPress={handleSave} color="#3498db" />
+                                   <Button
+                                        title={itemToEdit ? 'Lưu thay đổi' : 'Thêm bài tập'}
+                                        onPress={handleSave}
+                                        color="#3498db"
+                                   />
                               </View>
                          </View>
-                    </Pressable>
-               </TouchableOpacity>
+
+                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                              <Ionicons name="close-circle" size={30} color="#666" />
+                         </TouchableOpacity>
+                    </View>
+               </View>
           </Modal>
      );
-}
+};
 
 const styles = StyleSheet.create({
      modalOverlay: {
@@ -305,92 +310,116 @@ const styles = StyleSheet.create({
           alignItems: 'center',
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
      },
-     modalContent: {
+     modalContainer: {
           width: '90%',
-          maxHeight: '90%',
-          borderRadius: 10,
-          padding: 20,
+          maxHeight: '80%', // Giới hạn chiều cao modal
           backgroundColor: '#fff',
+          borderRadius: 15,
+          padding: 20,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
+          shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.25,
-          shadowRadius: 4,
-          elevation: 5,
+          shadowRadius: 5,
+          elevation: 8,
+          position: 'relative', // Để position absolute cho closeButton
      },
-     modalHeader: {
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+     scrollViewContent: {
+          paddingBottom: 20, // Đảm bảo có khoảng trống ở cuối ScrollView
+     },
+     modalTitle: {
+          fontSize: 24,
+          fontWeight: 'bold',
           marginBottom: 20,
-     },
-     closeButton: {
-          padding: 5,
-     },
-     formScrollViewContent: {
-          paddingBottom: 20,
+          textAlign: 'center',
+          color: '#333',
      },
      label: {
           fontSize: 16,
+          fontWeight: '600',
           marginBottom: 8,
-          marginTop: 10,
-          fontWeight: 'bold',
+          color: '#444',
+          marginTop: 15,
      },
      input: {
           borderWidth: 1,
-          borderColor: '#ddd',
-          padding: 10,
-          borderRadius: 6,
+          borderColor: '#ccc',
+          borderRadius: 8,
+          padding: 12,
+          marginBottom: 15,
           fontSize: 16,
-          backgroundColor: '#f9f9f9',
           color: '#333',
      },
-     notesInput: {
-          minHeight: 100,
-          textAlignVertical: 'top',
+     dateTimeContainer: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          marginBottom: 15,
      },
-     dateDisplay: {
-          borderWidth: 1,
-          borderColor: '#ddd',
-          padding: 10,
-          borderRadius: 6,
-          backgroundColor: '#f9f9f9',
-          justifyContent: 'center',
-     },
-     pickerContainer: {
-          borderWidth: 1,
-          borderColor: '#ddd',
-          borderRadius: 6,
-          overflow: 'hidden',
-          backgroundColor: '#f9f9f9',
-          // Thêm điều chỉnh layout cho iOS Picker
-          // width: '100%', // Đã xóa để thử flex
-          // height: 40, // Có thể đặt chiều cao ở container thay vì picker style
-     },
-     pickerStyle: {
-          height: 40,
-          flex: 1, // Thêm flex: 1 để Picker chiếm không gian có sẵn
-          // width: Platform.OS === 'ios' ? '100%' : 'auto', // Đảm bảo Picker chiếm hết chiều rộng của container trên iOS
-     },
-     statusToggle: {
+     datePickerButton: {
+          flex: 1,
           flexDirection: 'row',
           alignItems: 'center',
-          marginTop: 10,
-          marginBottom: 10,
-          padding: 10,
-          backgroundColor: '#f9f9f9',
-          borderRadius: 6,
-          borderColor: '#ddd',
+          justifyContent: 'center',
           borderWidth: 1,
+          borderColor: '#ccc',
+          padding: 12,
+          borderRadius: 8,
+          marginRight: 10,
+          backgroundColor: '#f9f9f9',
+     },
+     timePickerButton: {
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 1,
+          borderColor: '#ccc',
+          padding: 12,
+          borderRadius: 8,
+          backgroundColor: '#f9f9f9',
+     },
+     dateText: {
+          fontSize: 16,
+          marginLeft: 8,
+          color: '#333',
+     },
+     timeText: {
+          fontSize: 16,
+          marginLeft: 8,
+          color: '#333',
+     },
+     statusContainer: {
+          flexDirection: 'row',
+          justifyContent: 'space-around',
+          marginBottom: 15,
+          marginTop: 5,
+     },
+     statusOption: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: 10,
+          paddingHorizontal: 15,
+          borderRadius: 20,
+          borderWidth: 1,
+          borderColor: '#ccc',
+          minWidth: 120,
+          justifyContent: 'center',
      },
      statusText: {
           marginLeft: 10,
           fontSize: 16,
+     },
+     notesInput: {
+          minHeight: 100,
+          textAlignVertical: 'top',
      },
      modalFooter: {
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
           marginTop: 20,
+          paddingTop: 15,
+          borderTopWidth: 1,
+          borderTopColor: '#eee',
      },
      deleteButton: {
           flexDirection: 'row',
@@ -401,18 +430,18 @@ const styles = StyleSheet.create({
           color: '#dc3545',
           marginLeft: 5,
           fontSize: 16,
+          fontWeight: 'bold',
      },
      saveButtonContainer: {
           flex: 1,
           marginLeft: 20,
      },
-     // Added styles from AddScheduleModal for consistency if needed, but not used in this modal
-     timePickerButton: { flex: 1, borderWidth: 1, borderColor: '#ccc', padding: 12, borderRadius: 8, backgroundColor: '#f9f9f9', alignItems: 'center', },
-     timeText: { fontSize: 16, color: '#333', },
-     timeContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15, },
-     daysContainer: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 15, marginTop: 5, },
-     checkbox: { paddingVertical: 8, paddingHorizontal: 15, borderRadius: 25, borderWidth: 1, borderColor: '#ccc', marginRight: 8, marginBottom: 8, backgroundColor: '#eee', },
-     checkboxSelected: { backgroundColor: '#3498db', borderColor: '#3498db', },
-     checkboxText: { fontSize: 14, color: '#555', },
-     checkboxTextSelected: { color: '#fff', fontWeight: 'bold', },
+     closeButton: {
+          position: 'absolute',
+          top: 10,
+          right: 10,
+          zIndex: 1,
+     },
 });
+
+export default AddHomeworkModal;
