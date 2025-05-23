@@ -19,8 +19,8 @@ Notifications.setNotificationHandler({
           shouldShowAlert: true,
           shouldPlaySound: true,
           shouldSetBadge: false,
-          shouldShowBanner: true, // THÊM DÒNG NÀY
-          shouldShowList: true,   // THÊM DÒNG NÀY
+          shouldShowBanner: true, 
+          shouldShowList: true,   
      }),
 });
 
@@ -31,7 +31,7 @@ export interface HomeworkItem {
      dueDate: string; // ISO string for date and time (e.g., "2025-05-28T10:00:00Z")
      status: 'pending' | 'completed';
      notes?: string;
-     notificationId?: string; // Thêm trường này để lưu ID thông báo
+     notificationId?: string;
 }
 
 export interface ScheduleEvent {
@@ -192,7 +192,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
      };
 
      const updateHomework = async (updatedHomework: HomeworkItem) => {
-          // 1. Hủy thông báo cũ nếu có
+          // 1. Hủy thông báo cũ
           if (updatedHomework.notificationId) {
                await cancelHomeworkNotification(updatedHomework.notificationId);
           }
